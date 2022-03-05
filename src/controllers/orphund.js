@@ -5,8 +5,8 @@ const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
-const stripe = require("stripe")('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');
-//const stripe = require("stripe")('sk_test_51KPk4hG3qtUfMBk1g045CSDKbRInzr7aAC8pKMPzXUZzq1LJgADNGlmg1t5Odty74vcCVXScVopX5t2WAJLZfzYk00j0207GVb');
+//const stripe = require("stripe")('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');
+const stripe = require("stripe")('sk_test_51KPk4hG3qtUfMBk1g045CSDKbRInzr7aAC8pKMPzXUZzq1LJgADNGlmg1t5Odty74vcCVXScVopX5t2WAJLZfzYk00j0207GVb');
 
 
   
