@@ -15,11 +15,11 @@ const Categories = require('./src/controllers/categories')
 const Customer = require('./src/controllers/customer')
 const Payments = require('./src/controllers/payments')
 const Orphund = require('./src/controllers/orphund')
-//const Excel = require('./src/controllers/excelupload')
-//const Tutorial = require('./src/controllers/tutorial.controller.js')
+const Excel = require('./src/controllers/excelupload')
+const Tutorial = require('./src/controllers/tutorial.controller.js')
 const Login = require('./src/controllers/auth/authsignin')
 
-//const db = require("./models");
+const db = require("./models");
 
 
 
@@ -91,7 +91,7 @@ app.use((req, res, next) => {
     }
     next();
   });
-  /*
+  
 db.sequelize.sync()
   .then(() => {
     console.log("Synced db.");
@@ -99,7 +99,7 @@ db.sequelize.sync()
   .catch((err) => {
     console.log("Failed to sync db: " + err.message);
   });
-*/
+
      
 app.get('/', function(req,res){
 res.json({
@@ -115,8 +115,8 @@ app.use('/api/v1/customers', Customer)
 app.use('/api/v1/payments', Payments)
 app.use('/api/v1/auth/signin', Authsignin)
 app.use('/api/v1/orphund', Orphund)
-//app.use('/api/v1/excel', upload.single("file"), Excel)
-//app.use('/api/v1/tutorials', Tutorial)
+app.use('/api/v1/excel', upload.single("file"), Excel)
+app.use('/api/v1/tutorials', Tutorial)
 app.use('/api/v1/login', Login)
 
 
