@@ -7,7 +7,7 @@ const fs = require('fs')
 const app = express();
 const multer = require('multer');
 const cloudinary = require('cloudinary');
-/*
+
 const Sites = require('./src/controllers/sites')
 const Folders = require('./src/controllers/folders')
 const Files = require('./src/controllers/files')
@@ -25,7 +25,7 @@ const Login = require('./src/controllers/auth/authsignin')
 
 const Authsignin = require('./src/controllers/auth/authsignin')
 
-*/
+
 
 
 
@@ -106,7 +106,7 @@ res.json({
     m:'Welcome to zazzau'
 })
 })
-/*
+
 app.use('/api/v1/sites', Sites)
 app.use('/api/v1/folders', Folders)
 app.use('/api/v1/files', Files)
@@ -119,7 +119,7 @@ app.use('/api/v1/orphund', Orphund)
 //app.use('/api/v1/tutorials', Tutorial)
 app.use('/api/v1/login', Login)
 
-*/
+
 
 
 
