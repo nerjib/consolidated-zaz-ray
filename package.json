@@ -27,6 +27,8 @@
     "moment": "^2.29.1",
     "multer": "^1.4.4",
     "pg": "^8.7.1",
+    "read-excel-file": "^5.4.7",
+    "sequelize": "^6.21.4",
     "stripe": "^8.202.0"
   }
 }

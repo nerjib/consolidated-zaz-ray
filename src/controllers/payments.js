@@ -21,16 +21,49 @@ router.get('/', async (req, res) => {
       return res.status(400).send(`${error} jsh`);
     }
   });  
-
-  router.get('/customer/:id', async (req, res) => {
-    const getAllQ = `SELECT * FROM payments where customerid=$1`;
+  router.get('/allpayments', async (req, res) => {
+    const getAllQ = `SELECT payments.reference,payments.amount,payments.plotno, payments.createdat,customers.name, sites.name as site FROM payments left join customers on customers.id=payments.customerid left join sites on payments.siteid=sites.id order by payments.createdat asc`;
     try {
       // const { rows } = qr.query(getAllQ);
-      const { rows } = await db.query(getAllQ, [req.params.id]);
-      return res.status(201).send(rows);
+      const { rows } = await db.query(getAllQ);
+      return res.status(201).send({
+        status:true,
+        data: rows
+      });
     } catch (error) {
       if (error.routine === '_bt_check_unique') {
         return res.status(400).send({ message: 'User with that EMAIL already exist' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });  
+
+  router.get('/all', async (req, res) => {
+    const getAllQ = `SELECT nmspayments.ref,nmspayments.amount,nmspayments.ippis,  nmspayments.name, nmspayments.period, nmspayments.command FROM nmspayments `;
+    try {
+      // const { rows } = qr.query(getAllQ);
+      const { rows } = await db.query(getAllQ);
+      return res.status(201).send({
+        status:true,
+        data: rows
+      });
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({ message: 'User with that EMAIL already exist' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });  
+
+  router.get('/customer/:id', async (req, res) => {
+    const getAllQ = `SELECT * FROM nmspayments where ippis=$1`;
+    try {
+      // const { rows } = qr.query(getAllQ);
+      const { rows } = await db.query(getAllQ, [req.params.id]);
+      return res.status(201).send({status:true, data:rows});
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({status:false, message: '' });
       }
       return res.status(400).send(`${error} jsh`);
     }
@@ -42,21 +75,27 @@ router.get('/', async (req, res) => {
     if (req.method === 'POST') {
     
     const createUser = `INSERT INTO payments
-        (customerid,amount,receiptid,date,layout,plot)
+        (customerid,amount,reference,createdat,siteid,plotno)
       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
     console.log(req.body)
     const values = [
     req.body.customerid,
     req.body.amount,
-    req.body.receiptid,
+    req.body.reference,
     moment(new Date()),
-    req.body.layout,
-    req.body.plot
+    req.body.siteid,
+    req.body.plotno
       ];
     try {
     const { rows } = await db.query(createUser, values);
     // console.log(rows);
-    return res.status(201).send(rows);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Payment added successfully',
+        data: rows
+      }
+    );
     } catch (error) {
     return res.status(400).send(error);
     }  

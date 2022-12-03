@@ -14,12 +14,12 @@ router.post('/', async (req, res) => {
   if (!Helper.isValidEmail(req.body.email)) {
     return res.status(401).send({ message: 'Please enter a valid email address' });
   }*/
-  const text = 'SELECT * FROM customer WHERE email = $1';
+  const text = 'SELECT * FROM zazzauusers WHERE ippis = $1';
   try {
     const { rows } = await db.query(text, [req.body.email]);
     if (!rows[0]) {
       // console.log('user not');
-      return res.status(402).send({ message: 'user not found, check the username' });
+      return res.status(402).send({ status:false, message: 'Bad Credentials' });
     }
     // console.log(rows[0].pword);
    /* if (!Helper.comparePassword(rows[0].password, req.body.password)) {
@@ -27,12 +27,18 @@ router.post('/', async (req, res) => {
     }*/
     const token = Helper.generateToken(rows[0].id, rows[0].name);
     const response = {  
-      status: 'success',
+      status: true,
       data: {
         token,
         userId: rows[0].id,
+        fullName: rows[0].name,
         emailStatus: rows[0].email,
-        role: rows[0].role
+        roleId: rows[0].roleid,
+        isAdmin: rows[0].isadmin,
+        ippis: rows[0].ippis,
+        phoneNumber: rows[0].phoneNumber
+
+
 
       },
     };
@@ -44,7 +50,7 @@ router.post('/', async (req, res) => {
 
     return res.status(200).send(response);
   } catch (error) {
-    return res.status(405).send(error);
+    return res.status(405).send(error.message);
   }
 });
 

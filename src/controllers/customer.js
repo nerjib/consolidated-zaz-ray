@@ -9,7 +9,95 @@ const cloudinary = require('./cloudinary')
 
   
 router.get('/', async (req, res) => {
-    const getAllQ = `SELECT * FROM customer`;
+    const getAllQ = `SELECT * FROM custome WHERE isadmin=$1`;
+    try {
+      // const { rows } = qr.query(getAllQ);
+      const { rows } = await db.query(getAllQ,[true]);
+      return res.status(201).send(rows);
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({ message: 'User with that EMAIL already exist' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });  
+  router.get('/all', async (req, res) => {
+    const getAllQ = `SELECT *FROM zazzauusers `;
+    try {
+      // const { rows } = qr.query(getAllQ);
+      const { rows } = await db.query(getAllQ);
+      return res.status(201).send({status:true, data:rows});
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({ message: 'User with that EMAIL already exist' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });  
+
+  router.get('/profile/:id', async (req, res) => {
+    const getAllQ = `SELECT *FROM zazzauusers where ippis=$1`;
+    try {
+      // const { rows } = qr.query(getAllQ);
+      const { rows } = await db.query(getAllQ,[req.params.id]);
+      return res.status(201).send({status:true, data:rows});
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({ message: 'User with that EMAIL already exist' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });  
+
+  router.get('/plots/:id', async (req, res) => {
+    const getAllQ = `SELECT *FROM zazzauplots where customerid=$1`;
+    try {
+      // const { rows } = qr.query(getAllQ);
+      const { rows } = await db.query(getAllQ,[req.params.id]);
+      return res.status(201).send({status:true, data:rows});
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({ message: 'User with that EMAIL already exist' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });  
+
+  router.get('/stats', async (req, res) => {
+    const getAllQ = `SELECT count(*) FROM zazzauusers `;
+    const getMJos = `SELECT count(*) FROM zazzauusers where site='MARABAN JOS' `;
+    const getDamishi = `SELECT count(*) FROM zazzauusers where site='DAMISHI' `;
+    const getMcity = `SELECT count(*) FROM zazzauusers where site='MILLENIUM CITY' `;
+
+
+    try {
+      // const { rows } = qr.query(getAllQ);
+     let k1  =  await db.query(getAllQ);
+     let k2  =  await db.query(getMJos);
+     let k3  =  await db.query(getDamishi);
+     let k4  =  await db.query(getMcity);
+
+
+
+      return res.status(201).send({
+        status:true, 
+        data:{
+          allCustomers:k1.rows[0].count,
+          maraba: k2.rows[0].count,
+          mCity: k4.rows[0].count,
+          damishi: k3.rows[0].count,
+
+        }});
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({ message: 'User with that EMAIL already exist' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });  
+
+  router.get('/plotcount', async (req, res) => {
+    const getAllQ = `SELECT *, (select count(*) as nofoplots from plots where plots.customerid=customers.id) FROM customers where isadmin=false order by id asc`;
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ);
@@ -21,6 +109,30 @@ router.get('/', async (req, res) => {
       return res.status(400).send(`${error} jsh`);
     }
   });  
+
+  router.get('/sites/:phone', async (req, res) => {
+    const getAllQ = `SELECT customers.id as customerid, customers.name, plots.plotno, sites.id as siteid, sites.name as site  FROM customers left join plots on customers.id=plots.customerid left join sites on sites.id=plots.siteid where customers.phone=$1`;
+    try {
+      // const { rows } = qr.query(getAllQ);
+      const { rows } = await db.query(getAllQ,[req.params.phone]);
+      return res.status(201).send(
+        {
+          status:true,
+          data:rows
+        }
+        
+        );
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({ message: 'User with that EMAIL already exist' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });  
+
+
+
+
 
   router.get('/details/:id', async (req, res) => {
     const getAllQ = `SELECT * FROM customer where id=$1`;
@@ -35,6 +147,9 @@ router.get('/', async (req, res) => {
       return res.status(400).send(`${error} jsh`);
     }
   });  
+ 
+  
+
 
   router.get('/layouts/:id', async (req, res) => {
     const getAllQ = `select *,(select sum(amount) from payments where plot=plots.plotno and customerid=layouts.customerid) from plots left join layouts on layouts.proposedlayout=plots.layout where layouts.customerid=$1 and layouts.plotno=plots.plotno;`;
