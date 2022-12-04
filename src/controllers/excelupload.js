@@ -75,7 +75,7 @@ router.post('/customers', async (req, res) => {
         if(rowss[0] !=='name' || rowss[1] !=='phone'|| rowss[2] !=='ippis' || rowss[3] !=='location' ){
           return  res.status(500).send({
             status:false,
-            message: `Wrong excel format ${rowss[0]} ${rowss[1]} ${rowss[2]} ${rowss[3]}`,
+            message: `Wrong excel format ${rowss[0][0]} ${rowss[0][1]} ${rowss[0][2]} ${rowss[0][3]}`,
           });
         }else{
           return res.status(200).send({
