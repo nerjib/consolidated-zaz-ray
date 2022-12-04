@@ -75,15 +75,10 @@ router.post('/customers', async (req, res) => {
         if(rowss[0][0] !=='name' || rowss[0][1] !=='phone'|| rowss[0][2] !=='ippis' || rowss[0][3] !=='location'|| rowss[0][4] !=='beacon'|| rowss[0][5] !=='address' ){
           return  res.status(500).send({
             status:false,
-            message: `Wrong excel format ${rowss[0][0]} ${rowss[0][1]} ${rowss[0][2]} ${rowss[0][3]} ${rowss[0][4]} ${rowss[0][5]}`,
+            message: `Wrong excel format `,
           });
         }else{
-          return res.status(200).send({
-            status:true,
-            message: "format good",
-            data: rowss
-          })
-        }
+         
           rowss.shift();          
           let tutorials = [];
           rowss.forEach(async(row) => {
@@ -117,6 +112,8 @@ router.post('/customers', async (req, res) => {
               error: error.message,
             });
           });
+
+        }
       });
     } catch (error) {
       console.log(error);
@@ -127,6 +124,8 @@ router.post('/customers', async (req, res) => {
     }
   });  
 
+
+  
   router.post('/payments', async (req, res) => {
     try {
         if (req.file == undefined) {
