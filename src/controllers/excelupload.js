@@ -72,10 +72,10 @@ router.post('/customers', async (req, res) => {
           // skip header
           //return      res.status(500).send(rowss[0])
 
-        if(rowss[0] !=='name' || rowss[1] !=='phone'|| rowss[2] !=='ippis' || rowss[3] !=='location' ){
+        if(rowss[0][0] !=='name' || rowss[0][1] !=='phone'|| rowss[0][2] !=='ippis' || rowss[0][3] !=='location'|| rowss[0][4] !=='beacon'|| rowss[0][5] !=='address' ){
           return  res.status(500).send({
             status:false,
-            message: `Wrong excel format ${rowss[0][0]} ${rowss[0][1]} ${rowss[0][2]} ${rowss[0][3]}`,
+            message: `Wrong excel format ${rowss[0][0]} ${rowss[0][1]} ${rowss[0][2]} ${rowss[0][3]} ${rowss[0][4]} ${rowss[0][5]}`,
           });
         }else{
           return res.status(200).send({
