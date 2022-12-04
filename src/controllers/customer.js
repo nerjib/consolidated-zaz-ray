@@ -22,10 +22,10 @@ router.get('/', async (req, res) => {
     }
   });  
   router.get('/all', async (req, res) => {
-    const getAllQ = `SELECT *FROM zazzauusers `;
+    const getAllQ = `SELECT *FROM zazzauusers  where isadmin=$1`;
     try {
       // const { rows } = qr.query(getAllQ);
-      const { rows } = await db.query(getAllQ);
+      const { rows } = await db.query(getAllQ,[false]);
       return res.status(201).send({status:true, data:rows});
     } catch (error) {
       if (error.routine === '_bt_check_unique') {

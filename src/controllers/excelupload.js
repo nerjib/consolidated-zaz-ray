@@ -70,7 +70,21 @@ router.post('/customers', async (req, res) => {
         let path = `${req.file.destination}/${req.file.originalname}`;
         readXlsxFile(path).then(async(rowss) => {
           // skip header
-          rowss.shift();
+          //return      res.status(500).send(rowss[0])
+
+        if(rowss[0] !=='name' || rowss[1] !=='phone'|| rowss[2] !=='ippis' || rowss[3] !=='location' ){
+          return  res.status(500).send({
+            status:false,
+            message: "Wrong excel format",
+          });
+        }else{
+          return res.status(200).send({
+            status:true,
+            message: "format good",
+            data: rowss
+          })
+        }
+          rowss.shift();          
           let tutorials = [];
           rowss.forEach(async(row) => {
             let tutorial = {
