@@ -8,8 +8,7 @@ const dotenv = require('dotenv');
 
 const router = express.Router();
 
-
-const db = require('../dbs/index');
+const db = require('../db/index');
 
 
 async function addProfile(req, res, imgurl) {
