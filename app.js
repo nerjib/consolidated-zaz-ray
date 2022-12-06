@@ -19,6 +19,8 @@ const Excel = require('./src/controllers/excelupload')
 const Tutorial = require('./src/controllers/tutorial.controller.js')
 const Login = require('./src/controllers/auth/authsignin')
 
+const AddProfilePic = require('./src/controllers/addProfilePic')
+
 const db = require("./models");
 
 
@@ -118,6 +120,15 @@ app.use('/api/v1/orphund', Orphund)
 app.use('/api/v1/excel', upload.single("file"), Excel)
 app.use('/api/v1/tutorials', Tutorial)
 app.use('/api/v1/login', Login)
+
+app.post('/api/v1/addprofile', upload.single('file'), (req, res) => {
+  // console.log(req.body)
+    cloudinary.uploader.upload(req.file.path, function (result) {
+       console.log(result.secure_url)
+      // res.send({imgurl:result.secure_url})
+      AddProfilePic.addProfile(req,res,result.secure_url);
+     },{ resource_type: "auto", public_id: `profile-img/${req.body.userid}` });
+   });
 
 
 
