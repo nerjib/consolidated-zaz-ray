@@ -130,7 +130,15 @@ app.post('/api/v1/addprofile', upload.single('file'), (req, res) => {
      },{ resource_type: "auto", public_id: `profile-img/${req.body.userid}` });
    });
 
-
+   app.post('/api/v1/updateprofile', upload.single('file'), (req, res) => {
+    // console.log(req.body)
+      cloudinary.uploader.upload(req.file.path, function (result) {
+         console.log(result.secure_url)
+        // res.send({imgurl:result.secure_url})
+        AddProfilePic.updateProfile(req,res,result.secure_url);
+       },{ resource_type: "auto", public_id: `profile-img/${req.body.userid}` });
+     });
+  
 
 
 
