@@ -24,6 +24,21 @@ router.get('/plots', async (req, res) => {
   }
 });
 
+
+router.get('/allplots', async (req, res) => {
+  const getAllQ = `SELECT * FROM zazzauplots`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ);
+    return res.status(201).send(rows);
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
+
 //get plots and it owner and total payments received
 router.get('/customerplots', async (req, res) => {
   const getAllQ = `SELECT plots.plotno, plots.status, plots.price,plots.createdat, 
