@@ -215,7 +215,7 @@ router.post('/customers', async (req, res) => {
 
           });
          //console.log('tttttt',tutorials)
-          Tutorial.bulkCreate(tutorials, {ignoreDuplicates: true})
+          Plots.bulkCreate(tutorials, {ignoreDuplicates: true})
           .then(() => {
             res.status(200).send({
               status: true,
