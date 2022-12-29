@@ -41,14 +41,7 @@ router.get('/allplots', async (req, res) => {
 
 //get plots and it owner and total payments received
 router.get('/customerplots', async (req, res) => {
-  const getAllQ = `SELECT plots.plotno, plots.status, plots.price,plots.createdat, 
-  plots.soldat,sites.name as site,customers.name as customername, (select sum(amount) from payments 
-  where payments.plotno=plots.plotno and payments.siteid=plots.siteid group by siteid,plotno) as amountreceived
-   FROM plots left join sites on plots.siteid=sites.id left join customers
-    on plots.customerid=customers.id left join payments on plots.plotno=payments.plotno
-     and plots.siteid=payments.siteid group by plots.plotno,plots.siteid,plots.status,
-      plots.price,plots.createdat, plots.soldat, sites.name, customers.name order 
-      by plots.plotno asc`;
+  const getAllQ = `SELECT * from zazzauplots`;
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ);

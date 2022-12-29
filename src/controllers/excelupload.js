@@ -229,7 +229,6 @@ router.post('/customers', async (req, res) => {
               error: error.message,
             });
           });
-
         }
       });
     } catch (error) {
