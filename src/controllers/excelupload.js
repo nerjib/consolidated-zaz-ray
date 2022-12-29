@@ -9,6 +9,7 @@ const cloudinary = require('./cloudinary')
 const db2 = require("../../models");
 const Tutorial = db2.tutorials;
 const Payment = db2.payments;
+const Plots = db2.plots;
 
 
 
@@ -178,5 +179,66 @@ router.post('/customers', async (req, res) => {
     }
   });  
 
+
+  router.post('/plots', async (req, res) => {
+    try {
+        if (req.file == undefined) {
+          return res.status(400).send("Please upload an excel file!");
+        }
+      //  return console.log(JSON.stringify(req.file.originalname))
+        let path = `${req.file.destination}/${req.file.originalname}`;
+        readXlsxFile(path).then(async(rowss) => {
+          // skip header
+          //return      res.status(500).send(rowss[0])
+
+        if(rowss[0][0] !=='id' || rowss[0][1] !=='name'|| rowss[0][2] !=='phone' || rowss[0][3] !=='location'|| rowss[0][4] !=='block'|| rowss[0][5] !=='plot no' ){
+          return  res.status(500).send({
+            status:false,
+            message: `Wrong excel format `,
+          });
+        }else{        
+        
+          rowss.shift();          
+          let tutorials = [];
+          rowss.forEach(async(row) => {
+            let tutorial = {
+              customerid: row[0],
+              customername: row[1],
+              phonenumber: row[2],
+              location: row[3],
+              block: row[4],
+              plotno: row[5],
+
+            };           
+          
+              tutorials.push(tutorial);           
+
+          });
+         //console.log('tttttt',tutorials)
+          Tutorial.bulkCreate(tutorials, {ignoreDuplicates: true})
+          .then(() => {
+            res.status(200).send({
+              status: true,
+              message: "Uploaded the file successfully: " + req.file.originalname,
+            });
+          })
+          .catch((error) => {
+            res.status(500).send({
+              status: false,
+              message: "Fail to import data into database!",
+              error: error.message,
+            });
+          });
+
+        }
+      });
+    } catch (error) {
+      console.log(error);
+      res.status(500).send({
+        status:false,
+        message: "Could not upload the file: " + req.file.originalname,
+      });
+    }
+  });  
 
   module.exports = router;

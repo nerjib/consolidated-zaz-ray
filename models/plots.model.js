@@ -1,9 +1,19 @@
 module.exports = (sequelize, Sequelize) => {
     const Plots = sequelize.define("zazzauplots", {
+      customerid: {
+        type: Sequelize.STRING,
+      },
+      customername: {
+        type: Sequelize.STRING,
+      },
       plotno: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        primaryKey: true,
       },
       status: {
+        type: Sequelize.STRING,
+      },
+      phonenumber: {
         type: Sequelize.STRING,
       },
       shape: {
@@ -15,9 +25,14 @@ module.exports = (sequelize, Sequelize) => {
       coords: {
         type: Sequelize.ARRAY(Sequelize.STRING)
       },
-      customerid: {
+      block: {
         type: Sequelize.STRING,
+        primaryKey: true,
       },
+      location: {
+        type: Sequelize.STRING,
+        primaryKey: true,
+      },    
       soldat: {
         type: Sequelize.DATE,
       }     
