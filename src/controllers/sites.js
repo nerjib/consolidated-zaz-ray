@@ -41,7 +41,7 @@ router.get('/allplots', async (req, res) => {
 
 //get plots and it owner and total payments received
 router.get('/customerplots', async (req, res) => {
-  const getAllQ = `SELECT * from zazzauplots  sort by location asc, block asc, plotno asc`;
+  const getAllQ = `SELECT * from zazzauplots  order by location asc, block asc, plotno asc`;
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ);
