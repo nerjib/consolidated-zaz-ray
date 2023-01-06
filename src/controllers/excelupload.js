@@ -135,13 +135,25 @@ router.post('/customers', async (req, res) => {
       //  return console.log(JSON.stringify(req.file.originalname))
         let path = `${req.file.destination}/${req.file.originalname}`;
         readXlsxFile(path).then((rows) => {
+
+
+          if(rowss[3][0] !=='' || rowss[3][1] !=='Staff ID'|| rowss[3][2] !=='Legacy Id' || rowss[3][3] !=='Full Name'|| rowss[3][4] !=='Element'|| rowss[3][5] !=='Amount'|| rowss[3][5] !=='Period'|| rowss[3][5] !=='Amount' ){
+            return  res.status(500).send({
+              status:false,
+              message: `Wrong excel format `,
+            });
+          }else{                
+
           // skip header
           rows.shift();
+          rows.shift();
+          rows.shift();
+          rows.shift();
+
           let payments = [];
           rows.forEach((row) => {
 
             let payment = {
-              ref: row[0],
               ippis: row[1],
               legacyid: row[2],
               name: row[3],
@@ -169,6 +181,7 @@ router.post('/customers', async (req, res) => {
               error: error.message,
             });
           });
+        }
       });
     } catch (error) {
       console.log(error);

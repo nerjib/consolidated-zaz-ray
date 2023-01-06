@@ -1,11 +1,13 @@
 module.exports = (sequelize, Sequelize) => {
     const PaymentModel = sequelize.define("nmspayments", {
       ref: {
-        type: Sequelize.STRING,
-        unique: true
+        type: Sequelize.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
       },
       ippis: {
         type: Sequelize.STRING,
+        primaryKey: true,
       },
       legacyid: {
         type: Sequelize.STRING,
@@ -21,6 +23,7 @@ module.exports = (sequelize, Sequelize) => {
       },
       period: {
         type: Sequelize.STRING,
+        primaryKey: true,
       },
       command: {
         type: Sequelize.STRING,
