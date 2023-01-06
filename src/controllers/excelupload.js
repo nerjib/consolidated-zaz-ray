@@ -134,7 +134,7 @@ router.post('/customers', async (req, res) => {
         }
       //  return console.log(JSON.stringify(req.file.originalname))
         let path = `${req.file.destination}/${req.file.originalname}`;
-        readXlsxFile(path).then((rows) => {
+        readXlsxFile(path).then((rowss) => {
 
 
           if(rowss[3][0] !=='' || rowss[3][1] !=='Staff ID'|| rowss[3][2] !=='Legacy Id' || rowss[3][3] !=='Full Name'|| rowss[3][4] !=='Element'|| rowss[3][5] !=='Amount'|| rowss[3][5] !=='Period'|| rowss[3][5] !=='Amount' ){
@@ -156,7 +156,7 @@ router.post('/customers', async (req, res) => {
             let payment = {
               ippis: row[1],
               legacyid: row[2],
-              name: row[3],
+              name: row[3], 
               element: row[4],
               amount: row[5],
               period: row[6],
