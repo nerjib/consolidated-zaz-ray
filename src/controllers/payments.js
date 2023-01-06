@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
   });  
 
   router.get('/totalpayments', async (req, res) => {
-    const getAllQ = `SELECT SUM(*) from nmspayments`;
+    const getAllQ = `SELECT SUM(amount) from nmspayments`;
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ);
