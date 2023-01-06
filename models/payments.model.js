@@ -3,7 +3,6 @@ module.exports = (sequelize, Sequelize) => {
       ref: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
-        primaryKey: true
       },
       ippis: {
         type: Sequelize.STRING,
@@ -19,7 +18,7 @@ module.exports = (sequelize, Sequelize) => {
         type: Sequelize.STRING,
       },
       amount: {
-        type: Sequelize.STRING,
+        type: Sequelize.INTEGER,
       },
       period: {
         type: Sequelize.STRING,
