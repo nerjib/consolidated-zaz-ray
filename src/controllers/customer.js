@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
   });
 
   router.get('/all', async (req, res) => {
-    const getAllQ = `SELECT *FROM zazzauusers  where isadmin=$1 order by "createdAt asc`;
+    const getAllQ = `SELECT *FROM zazzauusers  where isadmin=$1 order by "createdAt" asc`;
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ,[false]);
