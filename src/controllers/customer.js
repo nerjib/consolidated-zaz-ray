@@ -21,6 +21,28 @@ router.get('/', async (req, res) => {
       return res.status(400).send(`${error} jsh`);
     }
   });  
+
+  router.put('/updatecustomer',  async(req, res) => {
+    
+    const updateUser = `UPDATE zazzauusers set ippis=$1, updatedby=$2, updatedAt=$3 where id=$4  RETURNING *`;
+    console.log(req.body)
+    const values = [
+    req.body.ippis,
+    req.body.adminId,
+    moment(new Date()),
+    req.body.userId
+      ];
+    try {
+    const { rows } = await db.query(updateUser, values);
+    // console.log(rows);
+    return res.status(201).send(rows);
+    } catch (error) {
+    return res.status(400).send(error);
+    }
+
+
+  });
+
   router.get('/all', async (req, res) => {
     const getAllQ = `SELECT *FROM zazzauusers  where isadmin=$1`;
     try {
