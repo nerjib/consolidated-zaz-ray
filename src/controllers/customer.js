@@ -35,7 +35,11 @@ router.get('/', async (req, res) => {
     try {
     const { rows } = await db.query(updateUser, values);
     // console.log(rows);
-    return res.status(201).send(rows);
+    return res.status(201).send({
+      status:true,
+      message: 'Updated successful',
+      data:rows
+    });
     } catch (error) {
     return res.status(400).send(error);
     }
