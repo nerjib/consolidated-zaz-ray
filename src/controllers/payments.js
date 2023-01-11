@@ -4,8 +4,8 @@ const router = express.Router();
 const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
-const cloudinary = require('./cloudinary');
-const { getPagination, getPagingData } = require('./helpers/pagination');
+const cloudinary = require('./cloudinary')
+const Helper = require('./helpers/pagination')
 
 
 
@@ -78,11 +78,11 @@ router.get('/', async (req, res) => {
 
   const { page, size, title } = req.query;
 
-  const { limit, offset } = getPagination(page, size);
+  const { limit, offset } = Helper.getPagination(page, size);
 
   Payment.findAndCountAll({  limit, offset })
     .then(data => {
-      const response = getPagingData(data, page, limit);
+      const response = Helper.getPagingData(data, page, limit);
       res.send(response);
     })
     .catch(err => {
