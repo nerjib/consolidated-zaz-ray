@@ -5,22 +5,9 @@ const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
+const Helper = require('./helpers/pagination')
 
 
-const getPagination = (page, size) => {
-  const limit = size ? +size : 3;
-  const offset = page ? page * limit : 0;
-
-  return { limit, offset };
-};
-
-const getPagingData = (rdata, page, limit) => {
-  const { count: totalItems, rows: data } = rdata;
-  const currentPage = page ? +page : 0;
-  const totalPages = Math.ceil(totalItems / limit);
-
-  return { totalItems, data, totalPages, currentPage };
-};
 
 router.get('/', async (req, res) => {
     const getAllQ = `SELECT * FROM payments`;
@@ -91,11 +78,11 @@ router.get('/', async (req, res) => {
 
   const { page, size, title } = req.query;
 
-  const { limit, offset } = getPagination(page, size);
+  const { limit, offset } = Helper.getPagination(page, size);
 
   Payment.findAndCountAll({  limit, offset })
     .then(data => {
-      const response = getPagingData(data, page, limit);
+      const response = Helper.getPagingData(data, page, limit);
       res.send(response);
     })
     .catch(err => {
