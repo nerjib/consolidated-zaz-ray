@@ -1,19 +1,29 @@
 const express = require('express');
 const moment = require ('moment')
-const CokokieParser = require('cookie-parser');
 const router = express.Router();
 const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary');
-const Helper = require('./helpers/pagination');
 const db2 = require("../../models");
 const Payment = db2.payments;
 
-router.use(CokokieParser());
 
+const getPagination = (page, size) => {
+  const limit = size ? +size : 3;
+  const offset = page ? page * limit : 0;
 
-  
+  return { limit, offset };
+};
+
+const getPagingData = (data, page, limit) => {
+  const { count: totalItems, rows: data } = data;
+  const currentPage = page ? +page : 0;
+  const totalPages = Math.ceil(totalItems / limit);
+
+  return { totalItems, tutorials, totalPages, currentPage };
+};
+
 router.get('/', async (req, res) => {
     const getAllQ = `SELECT * FROM payments`;
     try {
@@ -83,11 +93,11 @@ router.get('/', async (req, res) => {
 
     const { page, size, title } = req.query;
   
-    const { limit, offset } = Helper.getPagination(page, size);
+    const { limit, offset } = getPagination(page, size);
   
     Payment.findAndCountAll({  limit, offset })
       .then(data => {
-        const response = Helper.getPagingData(data, page, limit);
+        const response = getPagingData(data, page, limit);
         res.send(response);
       })
       .catch(err => {
