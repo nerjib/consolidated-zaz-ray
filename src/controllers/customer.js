@@ -5,9 +5,7 @@ const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
-const db2 = require("../../models");
-const helper = require('./helpers/pagination');
-const Payment = db2.payments;
+
 
 /*
 const getPagination = (page, size) => {
@@ -44,25 +42,7 @@ exports.findAll = (req, res) => {
     });
 };
 */
-router.get('/paginated', async (req,res)=>{
 
-  const { page, size, title } = req.query;
-
-  const { limit, offset } = helper.getPagination(page, size);
-
-  Payment.findAndCountAll({  limit, offset })
-    .then(data => {
-      const response = helper.getPagingData(data, page, limit);
-      res.send(response);
-    })
-    .catch(err => {
-      res.status(500).send({
-        message:
-          err.message || "Some error occurred while retrieving tutorials."
-      });
-    });
-
-})
 
 router.get('/', async (req, res) => {
     const getAllQ = `SELECT * FROM custome WHERE isadmin=$1`;
