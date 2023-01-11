@@ -9,8 +9,9 @@ const getPagination = (page, size) => {
     const { count: totalItems, rows: data } = rdata;
     const currentPage = page ? +page : 0;
     const totalPages = Math.ceil(totalItems / limit);
-  
-    return { totalItems, data, totalPages, currentPage };
+    const status = true;
+    const message = 'Successful'
+    return { status, message, totalItems, data, totalPages, currentPage };
   };
 
   module.exports = {
