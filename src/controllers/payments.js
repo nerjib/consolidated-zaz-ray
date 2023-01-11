@@ -5,9 +5,6 @@ const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary');
-const { getPagination, getPagingData } = require('./helpers/pagination');
-const db2 = require("../../models");
-const Payment = db2.payments;
 
 
   
@@ -76,25 +73,6 @@ router.get('/', async (req, res) => {
   });  
 
 
-  router.get('/paginated', async (req,res)=>{
-
-    const { page, size, title } = req.query;
-  
-    const { limit, offset } = getPagination(page, size);
-  
-    Payment.findAndCountAll({  limit, offset })
-      .then(data => {
-        const response = getPagingData(data, page, limit);
-        res.send(response);
-      })
-      .catch(err => {
-        res.status(500).send({
-          message:
-            err.message || "Some error occurred while retrieving payments."
-        });
-      });
-  
-  })
 
   router.get('/customer/:id', async (req, res) => {
     const getAllQ = `SELECT * FROM nmspayments where ippis=$1`;
