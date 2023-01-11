@@ -7,7 +7,21 @@ const upload = require('./multer')
 const cloudinary = require('./cloudinary')
 
 
-  
+const getPagination = (page, size) => {
+  const limit = size ? +size : 3;
+  const offset = page ? page * limit : 0;
+
+  return { limit, offset };
+};
+
+const getPagingData = (data, page, limit) => {
+  const { count: totalItems, rows: data } = data;
+  const currentPage = page ? +page : 0;
+  const totalPages = Math.ceil(totalItems / limit);
+
+  return { totalItems, data, totalPages, currentPage };
+};
+
 router.get('/', async (req, res) => {
     const getAllQ = `SELECT * FROM payments`;
     try {
@@ -71,6 +85,27 @@ router.get('/', async (req, res) => {
       return res.status(400).send(`${error} jsh`);
     }
   });  
+
+
+  router.get('/paginated', async (req,res)=>{
+
+  const { page, size, title } = req.query;
+
+  const { limit, offset } = getPagination(page, size);
+
+  Payment.findAndCountAll({  limit, offset })
+    .then(data => {
+      const response = getPagingData(data, page, limit);
+      res.send(response);
+    })
+    .catch(err => {
+      res.status(500).send({
+        message:
+          err.message || "Some error occurred while retrieving tutorials."
+      });
+    });
+
+})
 
   router.get('/customer/:id', async (req, res) => {
     const getAllQ = `SELECT * FROM nmspayments where ippis=$1`;
