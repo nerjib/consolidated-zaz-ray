@@ -6,6 +6,8 @@ const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
 const Helper = require('./helpers/pagination')
+const db2 = require("../../models");
+const Payment = db2.payments;
 
 
 
