@@ -6,8 +6,10 @@ const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
 const db2 = require("../../models");
+const { getPagination, getPagingData } = require('./helpers/pagination');
 const Payment = db2.payments;
 
+/*
 const getPagination = (page, size) => {
   const limit = size ? +size : 3;
   const offset = page ? page * limit : 0;
@@ -16,7 +18,7 @@ const getPagination = (page, size) => {
 };
 
 const getPagingData = (data, page, limit) => {
-  const { count: totalItems, rows: tutorials } = data;
+  const { count: totalItems, rows: data } = data;
   const currentPage = page ? +page : 0;
   const totalPages = Math.ceil(totalItems / limit);
 
