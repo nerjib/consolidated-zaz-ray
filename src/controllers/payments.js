@@ -1,5 +1,6 @@
 const express = require('express');
 const moment = require ('moment')
+const CokokieParser = require('cookie-parser');
 const router = express.Router();
 const db = require('../db/index');
 const dotenv = require('dotenv');
@@ -8,6 +9,8 @@ const cloudinary = require('./cloudinary');
 const Helper = require('./helpers/pagination');
 const db2 = require("../../models");
 const Payment = db2.payments;
+
+router.use(CokokieParser());
 
 
   
