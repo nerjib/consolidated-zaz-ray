@@ -13,7 +13,7 @@ const getPagination = (page, size) => {
     return { totalItems, tutorials, totalPages, currentPage };
   };
 
-  export {
+  module.exports = {
     getPagination,
     getPagingData
   }
