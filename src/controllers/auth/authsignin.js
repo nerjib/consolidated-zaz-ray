@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
   const text = 'SELECT * FROM zazzauusers WHERE ippis = $1';
   try {
     let userId;
-    if(email!='admin@nms.com'){
+    if(email!='admin@nms.com.ng'){
      userId = req.body.email.toUpperCase().replace(/\s/g, '');
     }else{
       userId = req.body.email.replace(/\s/g, '');
