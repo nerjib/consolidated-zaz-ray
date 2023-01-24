@@ -16,7 +16,13 @@ router.post('/', async (req, res) => {
   }*/
   const text = 'SELECT * FROM zazzauusers WHERE ippis = $1';
   try {
-    let userId = req.body.email.toUpperCase().replace(/\s/g, '');
+    let userId;
+    if(email!='admin@nms.com'){
+     userId = req.body.email.toUpperCase().replace(/\s/g, '');
+    }else{
+      userId = req.body.email.replace(/\s/g, '');
+
+    }
     const { rows } = await db.query(text, [userId]);
     if (!rows[0]) {
       // console.log('user not');
