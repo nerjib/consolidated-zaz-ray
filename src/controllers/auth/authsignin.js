@@ -16,7 +16,8 @@ router.post('/', async (req, res) => {
   }*/
   const text = 'SELECT * FROM zazzauusers WHERE ippis = $1';
   try {
-    const { rows } = await db.query(text, [req.body.email]);
+    let userId = req.body.email.toUpperCase().replace(/\s/g, '');
+    const { rows } = await db.query(text, [userId]);
     if (!rows[0]) {
       // console.log('user not');
       return res.status(402).send({ status:false, message: 'Bad Credentials' });
