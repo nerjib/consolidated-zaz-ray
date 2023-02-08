@@ -97,6 +97,20 @@ router.get('/', async (req, res) => {
 })
 
   router.get('/customer/:id', async (req, res) => {
+    const getAllQ = `SELECT * FROM nmspayments where ippis=$1`;
+    try {
+      // const { rows } = qr.query(getAllQ);
+      const { rows } = await db.query(getAllQ, [req.params.id]);
+      return res.status(201).send({status:true, data:rows});
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({status:false, message: '' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });  
+
+  router.get('/single/customer/:id', async (req, res) => {
     const getAllQ = `SELECT distinct(ippis),name, ref, legacyid, element, amount, period, command, "createdAt", "updatedAt" FROM nmspayments where ippis=$1 limit 1`;
     try {
       // const { rows } = qr.query(getAllQ);
