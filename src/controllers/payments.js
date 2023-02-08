@@ -97,7 +97,7 @@ router.get('/', async (req, res) => {
 })
 
   router.get('/customer/:id', async (req, res) => {
-    const getAllQ = `SELECT * FROM nmspayments where ippis=$1`;
+    const getAllQ = `SELECT distinct(ippis),name, ref, legacyid, element, amount, period, command, "createdAt", "updatedAt" FROM nmspayments where ippis=$1`;
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ, [req.params.id]);
