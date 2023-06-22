@@ -20,6 +20,8 @@ const Tutorial = require('./src/controllers/tutorial.controller.js')
 const Login = require('./src/controllers/auth/authsignin')
 
 const AddProfilePic = require('./src/controllers/addProfilePic')
+const AddIncidentReport = require('./src/controllers/addReport')
+
 
 const db = require("./models");
 
@@ -129,6 +131,16 @@ app.post('/api/v1/addprofile', upload.single('file'), (req, res) => {
       AddProfilePic.addProfile(req,res,result.secure_url);
      },{ resource_type: "auto", public_id: `profile-img/${req.body.userid}` });
    });
+
+   app.post('/api/v1/agilereport', upload.single('file'), (req, res) => {
+    // console.log(req.body)
+      cloudinary.uploader.upload(req.file.path, function (result) {
+         console.log(result.secure_url)
+        // res.send({imgurl:result.secure_url})
+        AddIncidentReport.addReport(req,res,result.secure_url);
+       },{ resource_type: "auto", public_id: `agile/${req.body.school}_${req.body.date}` });
+     });
+  
 
    app.post('/api/v1/updateprofile', upload.single('file'), (req, res) => {
     // console.log(req.body)
