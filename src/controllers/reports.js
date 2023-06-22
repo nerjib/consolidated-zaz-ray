@@ -15,7 +15,12 @@ router.get('/allreports', async (req, res) => {
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ);
-    return res.status(201).send(rows);
+    return res.status(201).send({
+      status: true,
+      messgae: 'successful',
+      data: rows,
+    
+    });
   } catch (error) {
     if (error.routine === '_bt_check_unique') {
       return res.status(400).send({ message: 'something is wrong' });
