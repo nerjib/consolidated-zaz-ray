@@ -19,6 +19,8 @@ const Orphund = require('./src/controllers/orphund')
 const Excel = require('./src/controllers/excelupload')
 const Tutorial = require('./src/controllers/tutorial.controller.js')
 const Login = require('./src/controllers/auth/authsignin')
+const Reports = require('./src/controllers/reports')
+
 
 const AddProfilePic = require('./src/controllers/addProfilePic')
 const AddIncidentReport = require('./src/controllers/addReport')
@@ -118,6 +120,7 @@ app.use('/api/v1/files', Files)
 app.use('/api/v1/categories', Categories)
 app.use('/api/v1/customers', Customer)
 app.use('/api/v1/payments', Payments)
+app.use('/api/v1/reports', Reports)
 app.use('/api/v1/auth/signin', Authsignin)
 app.use('/api/v1/orphund', Orphund)
 app.use('/api/v1/excel', upload.single("file"), Excel)
@@ -139,7 +142,7 @@ app.post('/api/v1/addprofile', upload.single('file'), (req, res) => {
          console.log(result.secure_url)
         // res.send({imgurl:result.secure_url})
         AddIncidentReport.addReport(req,res,result.secure_url);
-       },{ resource_type: "auto", public_id: `agile/${req.body.school}_${moment(req.body.date).format('DDMMYY')}` });
+       },{ resource_type: "auto", public_id: `agile/${req.body.school}_${moment(req.body.date).unix()}` });
      });
   
 
