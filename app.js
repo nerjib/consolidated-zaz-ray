@@ -138,7 +138,7 @@ app.post('/api/v1/addprofile', upload.single('file'), (req, res) => {
          console.log(result.secure_url)
         // res.send({imgurl:result.secure_url})
         AddIncidentReport.addReport(req,res,result.secure_url);
-       },{ resource_type: "auto", public_id: `agile/${req.body.school}_${req.body.date}` });
+       },{ resource_type: "auto", public_id: `agile/${req.body.school}_${moment(req.body.date).format('DDMMYY')}` });
      });
   
 
