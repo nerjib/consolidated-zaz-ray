@@ -143,7 +143,7 @@ router.get('/', async (req, res) => {
     if (req.method === 'POST') {
     
     const createUser = `INSERT INTO nmspayments
-        (ippis,legacyid,name,element,amount,period,command, createdAt)
+        (ippis,legacyid,name,element,amount,period,command, "createdAt")
       VALUES ($1, $2, $3, $4, $5, $6,$7,$8) RETURNING *`;
     console.log(req.body)
     const values = [
