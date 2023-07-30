@@ -138,6 +138,45 @@ router.get('/', async (req, res) => {
     }
   }); 
 
+  router.post('/single',   async(req, res) => {
+
+    if (req.method === 'POST') {
+    
+    const createUser = `INSERT INTO nmspayments
+        (ippis,legacyid,name,element,amount,period,command)
+      VALUES ($1, $2, $3, $4, $5, $6,$7) RETURNING *`;
+    console.log(req.body)
+    const values = [
+    req.body.ippis,
+    req.body.legacyid,
+    req.body.name,
+    req.body.element,
+    req.body.amount,
+    req.body.period,
+    req.body.command,
+      ];
+    try {
+    const { rows } = await db.query(createUser, values);
+    // console.log(rows);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Payment added successfully',
+        data: rows
+      }
+    );
+    } catch (error) {
+    return res.status(400).send(error);
+    }  
+  //  },{ resource_type: "auto", public_id: `ridafycovers/${req.body.title}` })
+
+} else {
+    res.status(405).json({
+      err: `${req.method} method not allowed`
+    })
+  }
+
+  });
 
   router.post('/',   async(req, res) => {
 
@@ -177,5 +216,6 @@ router.get('/', async (req, res) => {
   }
 
   });
+
 
   module.exports = router;
