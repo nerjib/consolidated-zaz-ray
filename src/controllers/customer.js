@@ -24,12 +24,16 @@ router.get('/', async (req, res) => {
 
   router.put('/updatecustomer',  async(req, res) => {
     
-    const updateUser = `UPDATE zazzauusers set ippis=$1, updatedby=$2, "updatedAt"=$3 where id=$4  RETURNING *`;
+    const updateUser = `UPDATE zazzauusers set ippis=$1, updatedby=$2, "updatedAt"=$3, "phoneNumber"=$4, address=$5, site=$6, status=$7 where id=$8  RETURNING *`;
     console.log(req.body)
     const values = [
     req.body.ippis,
     req.body.adminId,
     moment(new Date()),
+    req.body.phoneNumber,
+    req.body.address,
+    req.body.site,
+    req.body.status,
     req.body.userId
       ];
     try {
