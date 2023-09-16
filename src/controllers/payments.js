@@ -76,7 +76,7 @@ router.get('/', async (req, res) => {
   });  
 
   router.get('/range/:amount', async (req, res) => {
-    const getAllQ = `SELECT sum(amount) as tot, ref, amount, ippis, name, period, command FROM nmspayments group by ippis HAVING sum(amount) >= $1 `;
+    const getAllQ = `SELECT sum(amount) as tot, ippis, name, command FROM nmspayments group by ippis, name, command HAVING sum(amount) >= $1 `;
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ, [req.params.amount]);
