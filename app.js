@@ -20,6 +20,8 @@ const Excel = require('./src/controllers/excelupload')
 const Tutorial = require('./src/controllers/tutorial.controller.js')
 const Login = require('./src/controllers/auth/authsignin')
 const Reports = require('./src/controllers/reports')
+const Commerce = require('./src/controllers/commerce')
+
 
 
 const AddProfilePic = require('./src/controllers/addProfilePic')
@@ -125,6 +127,7 @@ app.use('/api/v1/auth/signin', Authsignin)
 app.use('/api/v1/orphund', Orphund)
 app.use('/api/v1/excel', upload.single("file"), Excel)
 app.use('/api/v1/tutorials', Tutorial)
+app.use('/api/v1/commerce', Commerce)
 app.use('/api/v1/login', Login)
 
 app.post('/api/v1/addprofile', upload.single('file'), (req, res) => {
