@@ -176,6 +176,41 @@ router.get('/', async (req, res) => {
     try {
     const { rows } = await db.query(createUser, values);
     // console.log(rows);
+    //  return res.status(201).send(rows);
+    return res.status(201).send({status:true, message: 'successful', data:rows});
+    } catch (error) {
+    return res.status(400).send(error);
+    }  
+  //  },{ resource_type: "auto", public_id: `ridafycovers/${req.body.title}` })
+} else {
+    res.status(405).json({
+      err: `${req.method} method not allowed`
+    })
+  }
+
+  });
+
+  router.post('/new',   async(req, res) => {
+
+    if (req.method === 'POST') {
+    
+    const createUser = `INSERT INTO zazzauplots
+        (customerid, customername, plotno, phonenumber, block, location, "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
+    console.log(req.body)
+    const values = [
+    req.body.customerid,
+    req.body.name,
+    req.body.plotno,
+    req.body.phonenumber,
+    req.body.block,
+    req.body.location,
+    moment(new Date()),
+    moment(new Date()),
+      ];
+    try {
+    const { rows } = await db.query(createUser, values);
+    // console.log(rows);
     return res.status(201).send(rows);
     } catch (error) {
     return res.status(400).send(error);
