@@ -208,19 +208,19 @@ router.get('/', async (req, res) => {
     }
   });  
 
-  router.post('/', upload.single('file'),  async(req, res) => {
-    const uploader = async (path) => await cloudinary.uploads(path,'customer', req.body.name+'_'+(new Date()).getTime());
+  router.post('/create', async(req, res) => {
+    // const uploader = async (path) => await cloudinary.uploads(path,'customer', req.body.name+'_'+(new Date()).getTime());
 
-    if (req.method === 'POST') {
-        const urls = []
-        const file = req.file.path;
-    //    for (const file of files) {
-       //   const { path } = file;
-          const newPath = await uploader(file)
-          urls.push(newPath.url)
-        //  console.log()
-         // fs.unlinkSync(path)
-      //  }
+    // if (req.method === 'POST') {
+    //     const urls = []
+    //     const file = req.file.path;
+    // //    for (const file of files) {
+    //    //   const { path } = file;
+    //       const newPath = await uploader(file)
+    //       urls.push(newPath.url)
+    //     //  console.log()
+    //      // fs.unlinkSync(path)
+    //   //  }
     
    // cloudinary.uploader.upload(req.file.path, async (result)=> {
     
@@ -250,11 +250,11 @@ router.get('/', async (req, res) => {
   
   //  },{ resource_type: "auto", public_id: `ridafycovers/${req.body.title}` })
 
-} else {
-    res.status(405).json({
-      err: `${req.method} method not allowed`
-    })
-  }
+// } else {
+//     res.status(405).json({
+//       err: `${req.method} method not allowed`
+//     })
+//   }
 
   });
 
