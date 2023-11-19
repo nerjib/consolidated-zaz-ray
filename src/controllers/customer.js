@@ -237,7 +237,7 @@ router.get('/', async (req, res) => {
     req.body.address,
      moment(new Date()),
      moment(new Date()),
-    false,
+    f,
     req.body.updatedBy
     ];
     try {
