@@ -225,8 +225,9 @@ router.get('/', async (req, res) => {
    // cloudinary.uploader.upload(req.file.path, async (result)=> {
     
     const createUser = `INSERT INTO zazzauusers
-        (name,ippis,"phoneNumber",site,beacon, address, "createdAt", "updatedAt", isadmin,"updatedBy", status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7,$8, $9, $10, $11) RETURNING *`;
+        (name,ippis,"phoneNumber",site,beacon, address, "createdAt", "updatedAt", isadmin, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7,$8, $9, $10) RETURNING *`;
+      // insert into zazzauusers(name,ippis,"phoneNumber",site,beacon,address,"isadmin","createdAt","updatedAt") values('ali zazzau',123321,08123,'DAMISHI','123,232','KAD',false,now(),now())
     console.log(req.body)
     const values = [
     req.body.name,
@@ -238,7 +239,6 @@ router.get('/', async (req, res) => {
      moment(new Date()),
      moment(new Date()),
     false,
-    req.body.updatedBy,
     "ACTIVE"
     ];
     try {
