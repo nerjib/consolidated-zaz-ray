@@ -25,10 +25,10 @@ router.get('/products', async (req, res) => {
 });
 
 router.get('/products/:qry', async (req, res) => {
-    const getAllQ = `SELECT * FROM beauproducts where name ILIKE ${req.params.qry}`;
+    const getAllQ = `SELECT * FROM beauproducts where name ILIKE $1`;
     try {
       // const { rows } = qr.query(getAllQ);
-      const { rows } = await db.query(getAllQ);
+      const { rows } = await db.query(getAllQ,['%'+req.params.id+'%']);
       return res.status(201).send(rows);
     } catch (error) {
       if (error.routine === '_bt_check_unique') {
