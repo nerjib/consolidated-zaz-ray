@@ -29,7 +29,11 @@ router.get('/products/:qry', async (req, res) => {
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ,['%'+req.params.qry+'%']);
-      return res.status(201).send(rows);
+      return res.status(201).send({
+        status: true,
+        data: rows,
+        message: 'successful'
+      });
     } catch (error) {
       if (error.routine === '_bt_check_unique') {
         return res.status(400).send({ message: 'Error' });
@@ -44,7 +48,11 @@ router.get('/carts', async (req, res) => {
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ);
-    return res.status(201).send(rows);
+    return res.status(201).send({
+      status: true,
+      data: rows,
+      message: 'successful'
+    });
   } catch (error) {
     if (error.routine === '_bt_check_unique') {
       return res.status(400).send({ message: 'User with that EMAIL already exist' });
