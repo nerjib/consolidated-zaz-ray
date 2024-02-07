@@ -21,6 +21,8 @@ const Tutorial = require('./src/controllers/tutorial.controller.js')
 const Login = require('./src/controllers/auth/authsignin')
 const Reports = require('./src/controllers/reports')
 const Commerce = require('./src/controllers/commerce')
+const Beauty = require('./src/controllers/beau.js')
+
 
 
 
@@ -129,6 +131,8 @@ app.use('/api/v1/excel', upload.single("file"), Excel)
 app.use('/api/v1/tutorials', Tutorial)
 app.use('/api/v1/commerce', Commerce)
 app.use('/api/v1/login', Login)
+app.use('/api/v1/beauty', Beauty)
+
 
 app.post('/api/v1/addprofile', upload.single('file'), (req, res) => {
   // console.log(req.body)
