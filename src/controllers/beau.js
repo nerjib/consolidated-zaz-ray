@@ -28,7 +28,7 @@ router.get('/products/:qry', async (req, res) => {
     const getAllQ = `SELECT * FROM beauproducts where name ILIKE $1`;
     try {
       // const { rows } = qr.query(getAllQ);
-      const { rows } = await db.query(getAllQ,['%'+req.params.id+'%']);
+      const { rows } = await db.query(getAllQ,['%'+req.params.qry+'%']);
       return res.status(201).send(rows);
     } catch (error) {
       if (error.routine === '_bt_check_unique') {
