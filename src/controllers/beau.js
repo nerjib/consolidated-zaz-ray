@@ -251,7 +251,15 @@ router.get('/transactions', async (req, res) => {
       },
       quantity: product.qty,      
     }));
-
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+      amount: 1000,
+      currency: 'usd',
+      });
+      res.json({ clientSecret: paymentIntent.client_secret });
+      } catch (error) {
+      res.status(500).json({ error: error.message });
+      }
     // const session = await stripe.checkout.session.create({
     //     payment_method: 'card',
     //     line_items: lineItems,
