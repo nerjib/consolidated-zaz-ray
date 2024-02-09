@@ -1,6 +1,6 @@
 const express = require('express');
 const moment = require ('moment')
-//const stripe = require('stripe')('sk_test_51KPk4hG3qtUfMBk1g045CSDKbRInzr7aAC8pKMPzXUZzq1LJgADNGlmg1t5Odty74vcCVXScVopX5t2WAJLZfzYk00j0207GVb');
+const stripe = require('stripe')('sk_test_51KPk4hG3qtUfMBk1g045CSDKbRInzr7aAC8pKMPzXUZzq1LJgADNGlmg1t5Odty74vcCVXScVopX5t2WAJLZfzYk00j0207GVb');
 const router = express.Router();
 const db = require('../db/index');
 const dotenv = require('dotenv');
