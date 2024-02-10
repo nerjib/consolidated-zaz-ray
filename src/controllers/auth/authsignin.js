@@ -45,8 +45,6 @@ router.post('/', async (req, res) => {
         ippis: rows[0].ippis,
         phoneNumber: rows[0].phoneNumber
 
-
-
       },
     };
 

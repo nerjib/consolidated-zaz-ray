@@ -35,11 +35,11 @@ router.post('/', async (req, res) => {
       data: {
         token,
         userId: rows[0].id,
-        fullName: rows[0].name,
-        email: rows[0].email,
+        customerName: rows[0].name,
+        customerEmail: rows[0].email,
         isAdmin: rows[0].admin,
-        address: rows[0].address,
-        phoneNumber: rows[0].phone,
+        deliveryAddress: rows[0].address,
+        customerPhone: rows[0].phone,
         country: rows[0].country
       },
     };

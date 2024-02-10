@@ -5,7 +5,7 @@ const nodemailer = require("nodemailer");
 const Helper = require('../helpers/helpers');
 
 const router = express.Router();
-const db = require('../dbs/index');
+const db = require('../../db/index');
     router.get('/kk', async (req, res) => {
     let kkk= []
      /*     const text = 'SELECT email FROM users';
