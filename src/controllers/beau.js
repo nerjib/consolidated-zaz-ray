@@ -361,17 +361,17 @@ router.get('/transactions', async (req, res) => {
 
   router.post('/addcart-checkout', async (req, res) => {
     try {
-      const { products } = req.body;
+      const { products, customername, customerid, referenceid } = req.body;
       let dataP = [];
       products.map((product) => (
           dataP.push({
             productId: product.id,
             productname: product.name,
-            customername: req.body.customername,
-            customerid: req.body.customerid,
+            customername,
+            customerid,
             price: product.price,
             qty: product.qty,
-            referenceid: req.body.referenceid
+            referenceid
           })
       ));
       
