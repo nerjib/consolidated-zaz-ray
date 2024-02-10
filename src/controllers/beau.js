@@ -365,7 +365,7 @@ router.get('/transactions', async (req, res) => {
       let dataP = [];
       products.map((product) => (
           dataP.push({
-            productId: product.id,
+            productid: product.id,
             productname: product.name,
             customername,
             customerid,
