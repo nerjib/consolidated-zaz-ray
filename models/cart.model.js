@@ -13,6 +13,12 @@ module.exports = (sequelize, Sequelize) => {
       productname: {
         type: Sequelize.STRING,
       },
+      price: {
+        type: Sequelize.STRING,
+      },
+      qty: {
+        type: Sequelize.STRING,
+      },
       referenceid: {
         type: Sequelize.STRING,
         primaryKey: true,
