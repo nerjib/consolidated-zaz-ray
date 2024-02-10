@@ -371,6 +371,7 @@ router.get('/transactions', async (req, res) => {
             customerid,
             price: product.price,
             qty: product.qty,
+            status: 'PENDING',
             referenceid
           })
       ));

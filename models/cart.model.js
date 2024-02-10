@@ -19,6 +19,9 @@ module.exports = (sequelize, Sequelize) => {
       qty: {
         type: Sequelize.STRING,
       },
+      status: {
+        type: Sequelize.STRING,
+      },
       referenceid: {
         type: Sequelize.STRING,
         primaryKey: true,

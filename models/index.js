@@ -37,7 +37,7 @@ db.sequelize = sequelize;
 db.tutorials = require("./tutorials.model.js")(sequelize, Sequelize);
 db.payments = require("./payments.model.js")(sequelize, Sequelize);
 db.plots = require("./plots.model.js")(sequelize, Sequelize);
-db.cart = require("./plots.cart.js")(sequelize, Sequelize);
+db.cart = require("./cart.model.js")(sequelize, Sequelize);
 
 
 module.exports = db;
