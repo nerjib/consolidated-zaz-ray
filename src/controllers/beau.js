@@ -6,6 +6,8 @@ const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
+const db2 = require("../../models");
+const Cart = db2.cart;
 
 
 
@@ -299,5 +301,90 @@ router.get('/transactions', async (req, res) => {
 
   });
 
+
+  router.post('/addcart-checkoutb',   async(req, res) => {
+
+    if (req.method === 'POST') {
+    //  const { products } = req.body;
+
+    // const lineItems = products.map((product) => ({
+    //   price_data: {
+    //     currency: 'usd',
+    //     product_data: {
+    //       name: product.name,
+    //       images: [product.imgurl],
+    //       price: product.price,
+    //     },
+    //     unit_amount: Math.round(product.price *100),        
+    //   },
+    //   quantity: product.qty,      
+    // }));
+   
+    // const session = await stripe.checkout.session.create({
+    //     payment_method: 'card',
+    //     line_items: lineItems,
+    //     mode: 'payment',
+    //     success_url: 'nerjib.github.io/beu/',
+    //     cancel_url: ''
+    // })
+    // res.json({id: session.id});
+    
+  //   const createUser = `INSERT INTO cart
+  //       (transactionid,datecreated, customerid, productid,status, amount)
+  //     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+  //   console.log(req.body)
+  //   const values = [
+  //   req.body.transactionid,
+  //   moment(new Date()),
+  //   req.body.category,
+  //   req.body.customerid,
+  //   req.body.productid,
+  //   req.body.status,
+  //   req.body.amount,
+  //     ];
+  //   try {
+  //   const { rows } = await db.query(createUser, values);
+  //   // console.log(rows);
+  //   //  return res.status(201).send(rows);
+  //   return res.status(201).send({status:true, message: 'successful', data:rows});
+  //   } catch (error) {
+  //   return res.status(400).send(error);
+  //   }  
+  // //  },{ resource_type: "auto", public_id: `ridafycovers/${req.body.title}` })
+} else {
+    res.status(405).json({
+      err: `${req.method} method not allowed`
+    })
+  }
+
+  });
+
+  router.post('/addcart-checkout', async (req, res) => {
+    try {
+      const { products } = req.body;
+         //console.log('tttttt',tutorials)
+          Cart.bulkCreate(products, {ignoreDuplicates: true})
+          .then(() => {
+            res.status(200).send({
+              status: true,
+              message: "cart updated successfully",
+            });
+          })
+          .catch((error) => {
+            res.status(500).send({
+              status: false,
+              message: "Failed",
+              error: error.message,
+            });
+          });
+        
+    } catch (error) {
+      console.log(error);
+      res.status(500).send({
+        status:false,
+        message: "Could not upload the file: ",
+      });
+    }
+  });
 
   module.exports = router;
