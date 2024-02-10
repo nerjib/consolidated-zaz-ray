@@ -376,7 +376,6 @@ router.get('/transactions', async (req, res) => {
           })
       ));
       
-         console.log('dataP',dataP)
           Cart.bulkCreate(dataP, {ignoreDuplicates: true})
           .then(() => {
             res.status(200).send({
