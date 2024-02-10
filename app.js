@@ -23,6 +23,8 @@ const Reports = require('./src/controllers/reports')
 const Commerce = require('./src/controllers/commerce')
 const Beauty = require('./src/controllers/beau.js')
 const BeuLogin = require('./src/controllers/auth/beuSignIn.js')
+const BeuSignUp = require('./src/controllers/auth/beuSignup.js')
+
 
 
 const AddProfilePic = require('./src/controllers/addProfilePic')
@@ -131,7 +133,8 @@ app.use('/api/v1/tutorials', Tutorial)
 app.use('/api/v1/commerce', Commerce)
 app.use('/api/v1/login', Login)
 app.use('/api/v1/beauty', Beauty)
-app.use('/api/v1/login', BeuLogin);
+app.use('/api/v1/beauty/login', BeuLogin);
+app.use('/api/v1/beauty/signup', BeuSignUp);
 
 
 
