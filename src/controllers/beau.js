@@ -362,8 +362,21 @@ router.get('/transactions', async (req, res) => {
   router.post('/addcart-checkout', async (req, res) => {
     try {
       const { products } = req.body;
-         //console.log('tttttt',tutorials)
-          Cart.bulkCreate(products, {ignoreDuplicates: true})
+      let dataP = [];
+      products.map((product) => (
+          dataP.push({
+            productId: product.id,
+            productname: product.name,
+            customername: req.body.customername,
+            customerid: req.body.customerid,
+            price: product.price,
+            qty: product.qty,
+            referenceid: req.body.referenceid
+          })
+      ));
+      
+         console.log('dataP',dataP)
+          Cart.bulkCreate(dataP, {ignoreDuplicates: true})
           .then(() => {
             res.status(200).send({
               status: true,
