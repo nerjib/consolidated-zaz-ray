@@ -237,23 +237,23 @@ router.get('/transactions', async (req, res) => {
   router.post('/create-checkout',   async(req, res) => {
 
     if (req.method === 'POST') {
-    const { products } = req.body;
+    //  const { products } = req.body;
 
-    const lineItems = products.map((product) => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: product.name,
-          images: [product.imgurl],
-          price: product.price,
-        },
-        unit_amount: Math.round(product.price *100),        
-      },
-      quantity: product.qty,      
-    }));
+    // const lineItems = products.map((product) => ({
+    //   price_data: {
+    //     currency: 'usd',
+    //     product_data: {
+    //       name: product.name,
+    //       images: [product.imgurl],
+    //       price: product.price,
+    //     },
+    //     unit_amount: Math.round(product.price *100),        
+    //   },
+    //   quantity: product.qty,      
+    // }));
     try {
       const paymentIntent = await stripe.paymentIntents.create({
-      amount: 1000,
+      amount: Math.round(req.body.amount *100),
       currency: 'usd',
       });
       res.json({ clientSecret: paymentIntent.client_secret });
