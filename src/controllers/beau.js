@@ -105,7 +105,7 @@ router.get('/transactions', async (req, res) => {
 });
 
 router.get('/myorder/:id', async (req, res) => {
-  const getAllQ = `SELECT * from beucheckoutcarts where customerid=$1 order by createdAt asc`;
+  const getAllQ = `SELECT * from beucheckoutcarts where customerid=$1 order by "createdAt" asc`;
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ, [req.params.id]);
