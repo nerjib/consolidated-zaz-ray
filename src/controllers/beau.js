@@ -381,7 +381,7 @@ router.get('/myorder/:id', async (req, res) => {
     try {
       const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(req.body.amount *100),
-      currency: 'usd',
+      currency: req.body.currency,
       });
       res.json({ clientSecret: paymentIntent.client_secret });
       } catch (error) {
