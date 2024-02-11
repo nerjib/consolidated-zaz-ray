@@ -47,6 +47,23 @@ router.get('/products/:qry', async (req, res) => {
     }
   });
 
+  router.get('/products/category/:qry', async (req, res) => {
+    const getAllQ = `SELECT * FROM beauproducts where category=$1`;
+    try {
+      // const { rows } = qr.query(getAllQ);
+      const { rows } = await db.query(getAllQ,[req.params.qry]);
+      return res.status(201).send({
+        status: true,
+        data: rows,
+        message: 'successful'
+      });
+    } catch (error) {
+      if (error.routine === '_bt_check_unique') {
+        return res.status(400).send({ message: 'Error' });
+      }
+      return res.status(400).send(`${error} jsh`);
+    }
+  });
 
 router.get('/carts', async (req, res) => {
   const getAllQ = `SELECT * FROM cart`;
@@ -104,6 +121,63 @@ router.get('/transactions', async (req, res) => {
   }
 });
 
+router.get('/admin/allorder', async (req, res) => {
+  const getAllQ = `SELECT * from beucheckoutcarts order by "createdAt" asc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Successful',
+        data:rows
+      });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
+router.get('/admin/orderbyref/:id', async (req, res) => {
+  const getAllQ = `SELECT * from beucheckoutcarts where reference=$1 order by "createdAt" asc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ, [req.params.id]);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Successful',
+        data:rows
+      });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
+
+router.get('/admin/orderbystatus/:status', async (req, res) => {
+  const getAllQ = `SELECT * from beucheckoutcarts where status=$1 order by "createdAt" asc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ, [req.params.status]);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Successful',
+        data:rows
+      });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
+
+
 router.get('/myorder/:id', async (req, res) => {
   const getAllQ = `SELECT * from beucheckoutcarts where customerid=$1 order by "createdAt" asc`;
   try {
@@ -124,13 +198,13 @@ router.get('/myorder/:id', async (req, res) => {
 });
   
 
-  router.post('/addproduct',   async(req, res) => {
+  router.post('/addproducts',   async(req, res) => {
 
     if (req.method === 'POST') {
     
     const createUser = `INSERT INTO beauproducts
-        (name,datecreated, category,description, price,status,imgurl)
-      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+        (name,datecreated, category,description, price,status,imgurl, nga, uk, ngprice, ukprice)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`;
     console.log(req.body)
     const values = [
     req.body.name,
@@ -140,6 +214,10 @@ router.get('/myorder/:id', async (req, res) => {
     req.body.price,
     req.body.status,
     req.body.imgurl,
+    req.body.nga,
+    req.body.uk,
+    req.body.ngprice,
+    req.body.ukprice
       ];
     try {
     const { rows } = await db.query(createUser, values);
@@ -174,6 +252,34 @@ router.get('/myorder/:id', async (req, res) => {
     req.body.productid,
     req.body.status,
     req.body.amount,
+      ];
+    try {
+    const { rows } = await db.query(createUser, values);
+    // console.log(rows);
+    //  return res.status(201).send(rows);
+    return res.status(201).send({status:true, message: 'successful', data:rows});
+    } catch (error) {
+    return res.status(400).send(error);
+    }  
+  //  },{ resource_type: "auto", public_id: `ridafycovers/${req.body.title}` })
+} else {
+    res.status(405).json({
+      err: `${req.method} method not allowed`
+    })
+  }
+
+  });
+
+  router.post('/updatecheckout',   async(req, res) => {
+    if (req.body.status !== 'DELIVERED' || req.body.status !== 'PENDING') res.status(405).json({err: `status not allowed`})
+    if (req.method === 'POST') {
+    
+    const createUser = `UPDATE beucheckoutcarts set status=$1, updatedat=$2 where id=$3 RETURNING *`;
+    console.log(req.body)
+    const values = [
+    req.body.status,
+    moment(new Date()),
+    req.body.checkoutid,
       ];
     try {
     const { rows } = await db.query(createUser, values);

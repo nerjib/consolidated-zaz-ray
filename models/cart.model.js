@@ -28,6 +28,9 @@ module.exports = (sequelize, Sequelize) => {
       },    
       createdAt: {
         type: Sequelize.DATE,
+      },
+      updatedat: {
+        type: Sequelize.DATE,
       }     
     });
     return Cart;
