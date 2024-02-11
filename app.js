@@ -157,13 +157,18 @@ app.post('/api/v1/addprofile', upload.single('file'), (req, res) => {
        },{ resource_type: "auto", public_id: `agile/${req.body.school}_${moment(req.body.date).unix()}` });
      });
   
-     app.post('/api/v1/beauty/addproduct', upload.single('file'), (req, res) => {
+    //  app.post('/api/v1/beauty/addproduct', upload.single('file'), (req, res) => {
+    //   // console.log(req.body)
+    //     cloudinary.uploader.upload(req.file.path, function (result) {
+    //        console.log(result.secure_url)
+    //       // res.send({imgurl:result.secure_url})
+    //       AddBeuProducts.addProduct(req,res,result.secure_url);
+    //      },{ resource_type: "auto", public_id: `beauty/${req.body.name}/${req.body.name}_${moment(new Date()).unix()}` });
+    //    });
+    app.post('/api/v1/beauty/addproduct', (req, res) => {
       // console.log(req.body)
-        cloudinary.uploader.upload(req.file.path, function (result) {
-           console.log(result.secure_url)
-          // res.send({imgurl:result.secure_url})
-          AddBeuProducts.addProduct(req,res,result.secure_url);
-         },{ resource_type: "auto", public_id: `beauty/${req.body.name}/${req.body.name}_${moment(new Date()).unix()}` });
+       
+          AddBeuProducts.addProduct(req,res,req.body.file);
        });
     
        app.put('/api/v1/beauty/updateproduct', upload.single('file'), (req, res) => {
