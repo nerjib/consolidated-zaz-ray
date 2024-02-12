@@ -486,7 +486,7 @@ router.get('/myorder/:id', async (req, res) => {
 
   router.post('/addcart-checkout', async (req, res) => {
     try {
-      const { products, customername, customerid, referenceid } = req.body;
+      const { products, customername, customerid, referenceid, address } = req.body;
       let dataP = [];
       products.map((product) => (
           dataP.push({
@@ -494,10 +494,11 @@ router.get('/myorder/:id', async (req, res) => {
             productname: product.name,
             customername,
             customerid,
-            price: product.price,
+            price: product.price * product.rate,
             qty: product.qty,
             status: 'PENDING',
-            referenceid
+            referenceid,
+            address,
           })
       ));
       
