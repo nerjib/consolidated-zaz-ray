@@ -8,6 +8,8 @@ const upload = require('./multer')
 const cloudinary = require('./cloudinary')
 const db2 = require("../../models");
 const Cart = db2.cart;
+const Wholesale = db2.wholesales;
+
 
 
 
@@ -153,6 +155,25 @@ router.get('/admin/orderbyref/:id', async (req, res) => {
   } catch (error) {
     if (error.routine === '_bt_check_unique') {
       return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
+
+router.get('/product-review/:id', async (req, res) => {
+  const getAllQ = `SELECT * from beureviews where productid=$1 order by "createdAt" asc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ, [req.params.id]);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Successful',
+        data:rows
+      });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that' });
     }
     return res.status(400).send(`${error} jsh`);
   }
@@ -516,6 +537,108 @@ router.get('/myorder/:id', async (req, res) => {
               error: error.message,
             });
           });
+        
+    } catch (error) {
+      console.log(error);
+      res.status(500).send({
+        status:false,
+        message: "Could not upload the file: ",
+      });
+    }
+  });
+
+  router.post('/review', async (req, res) => {
+      const { productid, userid, customername, review } = req.body;
+      const createUser = `INSERT INTO beaureviews
+        (productid,userid,custmername, review, datecreated)
+      VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+    console.log(req.body)
+    const values = [
+    productid,
+    userid,
+    customername,
+    review,
+    moment(new Date())
+    ];
+    try {
+    const { rows } = await db.query(createUser, values);
+    // console.log(rows);
+    //  return res.status(201).send(rows);
+    return res.status(201).send({status:true, message: 'successful', data:rows});
+    } catch (error) {
+    return res.status(400).send(error);
+    }    
+  });
+
+  router.post('/addwholesale', async (req, res) => {
+    try {
+      const { products, customername, customerid, referenceid, address } = req.body;
+      let dataP = [];
+      products.map((product) => (
+          dataP.push({
+            productid: product.id,
+            productname: product.name,
+            customername,
+            customerid,
+            qty: product.qty,
+            status: 'PENDING',
+            referenceid,
+            address,
+            createdat: moment(new Date())
+          })
+      ));
+      
+          Wholesale.bulkCreate(dataP, {ignoreDuplicates: true})
+          .then(() => {
+            res.status(200).send({
+              status: true,
+              message: "cart updated successfully",
+            });
+          })
+          .catch((error) => {
+            res.status(500).send({
+              status: false,
+              message: "Failed",
+              error: error.message,
+            });
+          });
+        
+    } catch (error) {
+      console.log(error);
+      res.status(500).send({
+        status:false,
+        message: "Could not upload the file: ",
+      });
+    }
+  });
+
+  router.put('/addwholesale', async (req, res) => {
+    try {
+      const { products, adminid } = req.body;
+      let dataP = [];
+      products.map((product) => (
+          dataP.push({
+            id: product.id,
+            price: product.price,
+            status: 'REVIEWED',
+            adminid,
+            updatedat: moment(new Date())
+          })
+      ));
+      
+      for (let i = 0; i < dataP.length; i++) {
+            await Wholesale.update(
+              dataP[i],
+              { where: { id: dataP[i].id } }
+            );
+          }
+          // .catch((error) => {
+          //   res.status(500).send({
+          //     status: false,
+          //     message: "Failed",
+          //     error: error.message,
+          //   });
+          // });
         
     } catch (error) {
       console.log(error);
