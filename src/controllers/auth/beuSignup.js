@@ -124,7 +124,7 @@ router.post('/', async (req, res) => {
     req.body.country,
     moment(new Date()),
     rC,
-    referrer
+    req.body.referrer
   ];
 
   try {
