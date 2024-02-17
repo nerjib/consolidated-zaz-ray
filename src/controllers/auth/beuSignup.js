@@ -1,7 +1,7 @@
 const express = require('express');
 const moment = require('moment');
 const nodemailer = require("nodemailer");
-const referalCodes = require('referral-codes');
+let referralCodeGenerator = require('referral-code-generator')
 
 const Helper = require('../helpers/helpers');
 
@@ -110,10 +110,7 @@ router.post('/', async (req, res) => {
     return res.status(401).send({ message: 'Please enter a valid email address' });
   }
   const hashPassword = Helper.hashPassword(req.body.password);
-  const rC = referalCodes.generateOne({
-    length: 8,
-    count: 1,
-  });
+  const rC = referralCodeGenerator.alphaNumeric('uppercase', 4, 4);
   const createQuery = `INSERT INTO
     beauusers(name, email, password, phone, address, country,datecreated, referrer)
     VALUES($1, $2, $3, $4, $5, $6, $7, $8)
@@ -126,7 +123,7 @@ router.post('/', async (req, res) => {
     req.body.address,
     req.body.country,
     moment(new Date()),
-    rC[0]
+    rC
   ];
 
   try {
