@@ -112,8 +112,8 @@ router.post('/', async (req, res) => {
   const hashPassword = Helper.hashPassword(req.body.password);
   const rC = referralCodeGenerator.alphaNumeric('uppercase', 4, 4);
   const createQuery = `INSERT INTO
-    beauusers(name, email, password, phone, address, country,datecreated, referrer)
-    VALUES($1, $2, $3, $4, $5, $6, $7, $8)
+    beauusers(name, email, password, phone, address, country,datecreated, referralcode, referrer)
+    VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *`;
   const values = [
     req.body.name,
@@ -123,7 +123,8 @@ router.post('/', async (req, res) => {
     req.body.address,
     req.body.country,
     moment(new Date()),
-    rC
+    rC,
+    referrer
   ];
 
   try {
