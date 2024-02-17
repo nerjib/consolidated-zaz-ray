@@ -6,6 +6,7 @@ const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
+const referralCodeGenerator = require('referral-code-generator')
 const db2 = require("../../models");
 const Cart = db2.cart;
 const Wholesale = db2.wholesales;
@@ -572,8 +573,9 @@ router.get('/myorder/:id', async (req, res) => {
 
   router.post('/addwholesale', async (req, res) => {
     try {
-      const { products, customername, customerid, referenceid, address } = req.body;
+      const { products, customername, customerid, address } = req.body;
       let dataP = [];
+      const referenceid = referralCodeGenerator.alphaNumeric('uppercase', 2, 2);
       products.map((product) => (
           dataP.push({
             productid: product.id,
