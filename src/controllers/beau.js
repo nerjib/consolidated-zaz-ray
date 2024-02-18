@@ -551,7 +551,7 @@ router.get('/myorder/:id', async (req, res) => {
   router.post('/review', async (req, res) => {
       const { productid, userid, customername, review } = req.body;
       const createUser = `INSERT INTO beaureviews
-        (productid,userid,custmername, review, "createdAt")
+        (productid,userid,customername, review, "createdAt")
       VALUES ($1, $2, $3, $4, $5) RETURNING *`;
     console.log(req.body)
     const values = [
