@@ -162,7 +162,7 @@ router.get('/admin/orderbyref/:id', async (req, res) => {
 });
 
 router.get('/product-review/:id', async (req, res) => {
-  const getAllQ = `SELECT * from beureviews where productid=$1 order by "createdAt" asc`;
+  const getAllQ = `SELECT * from beaureviews where productid=$1 order by "createdAt" asc`;
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ, [req.params.id]);
