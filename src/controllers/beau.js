@@ -657,9 +657,10 @@ router.get('/myorder/:id', async (req, res) => {
       let dataP = [];
       products.map((product) => (
           dataP.push({
-            id: product.id,
+            id: product.productid,
             price: product.price,
             status: 'REVIEWED',
+            referenceid: prodq.referenceid,
             adminid,
             updatedat: moment(new Date())
           })
@@ -668,7 +669,7 @@ router.get('/myorder/:id', async (req, res) => {
       for (let i = 0; i < dataP.length; i++) {
             await Wholesale.update(
               dataP[i],
-              { where: { id: dataP[i].id } }
+              { where: { productid: dataP[i].id, referenceid: dataP[i].referenceid } }
             );
           }
           // .catch((error) => {
