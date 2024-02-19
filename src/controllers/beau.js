@@ -199,6 +199,24 @@ router.get('/admin/orderbystatus/:status', async (req, res) => {
   }
 });
 
+router.get('/admin/wholesellers-req', async (req, res) => {
+  const getAllQ = `SELECT distinct(referenceid), customername, customerid, status, 'createdAt' from beauwholesales order by "createdAt" asc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Successful',
+        data:rows
+      });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
 
 router.get('/myorder/:id', async (req, res) => {
   const getAllQ = `SELECT * from beucheckoutcarts where customerid=$1 order by "createdAt" asc`;
@@ -582,7 +600,7 @@ router.get('/myorder/:id', async (req, res) => {
             productname: product.name,
             customername,
             customerid,
-            qty: product.qty,
+            qty: product.qty ?? 1,
             status: 'PENDING',
             referenceid,
             address,
