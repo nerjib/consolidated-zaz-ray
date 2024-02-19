@@ -218,6 +218,25 @@ router.get('/admin/wholesellers-req', async (req, res) => {
   }
 });
 
+router.get('/admin/wholesale/:ref', async (req, res) => {
+  const getAllQ = `SELECT * from beauwholesales where referenceid=$1 order by "createdAt" asc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ, [req.params.ref]);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Successful',
+        data:rows
+      });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
+
 router.get('/myorder/:id', async (req, res) => {
   const getAllQ = `SELECT * from beucheckoutcarts where customerid=$1 order by "createdAt" asc`;
   try {
