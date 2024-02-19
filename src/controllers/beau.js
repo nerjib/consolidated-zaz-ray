@@ -200,7 +200,7 @@ router.get('/admin/orderbystatus/:status', async (req, res) => {
 });
 
 router.get('/admin/wholesellers-req', async (req, res) => {
-  const getAllQ = `SELECT distinct(referenceid), customername, customerid, status, 'createdAt' from beauwholesales`;
+  const getAllQ = `SELECT distinct(referenceid), customername, customerid, status, "createdAt" from beauwholesales order by "createdAt" asc`;
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ);
