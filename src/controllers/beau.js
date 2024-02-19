@@ -660,7 +660,7 @@ router.get('/myorder/:id', async (req, res) => {
             id: product.productid,
             price: product.price,
             status: 'REVIEWED',
-            referenceid: prodq.referenceid,
+            referenceid: product.referenceid,
             adminid,
             updatedat: moment(new Date())
           })
@@ -684,7 +684,7 @@ router.get('/myorder/:id', async (req, res) => {
       console.log(error);
       res.status(500).send({
         status:false,
-        message: "Could not upload the file: ",
+        message: "Could not he file: ",
       });
     }
   });
