@@ -652,7 +652,6 @@ router.get('/myorder/:id', async (req, res) => {
   });
 
   router.put('/addwholesale', async (req, res) => {
-    try {
       const { products, adminid } = req.body;
       let dataP = [];
       products.map((product) => (
@@ -665,7 +664,7 @@ router.get('/myorder/:id', async (req, res) => {
             updatedat: moment(new Date())
           })
       ));
-      
+    try {
       for (let i = 0; i < dataP.length; i++) {
             await Wholesale.update(
               dataP[i],
@@ -679,7 +678,10 @@ router.get('/myorder/:id', async (req, res) => {
           //     error: error.message,
           //   });
           // });
-        
+          res.status(200).send({
+            status: true,
+            message: "cart updated successfully",
+          });
     } catch (error) {
       console.log(error);
       res.status(500).send({
