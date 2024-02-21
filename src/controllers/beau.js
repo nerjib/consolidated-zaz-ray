@@ -714,4 +714,32 @@ router.get('/myorder/:id', async (req, res) => {
     }
   });
 
+  router.put('/wholesale-checkout',   async(req, res) => {
+
+    if (req.method === 'PUT') {
+    
+    const createUser = `UPDATE beauwholesales set status=$1, paymentdate=$2, updatedat=$3 where paymentreference=$4 RETURNING *`;
+    const values = [
+    req.body.status,
+    req.body.status,
+    moment(new Date()),
+    moment(new Date()),
+    req.body.paymentref
+      ];
+    try {
+    const { rows } = await db.query(createUser, values);
+    // console.log(rows);
+    //  return res.status(201).send(rows);
+    return res.status(201).send({status:true, message: 'successful', data:rows});
+    } catch (error) {
+    return res.status(400).send(error);
+    }  
+  //  },{ resource_type: "auto", public_id: `ridafycovers/${req.body.title}` })
+} else {
+    res.status(405).json({
+      err: `${req.method} method not allowed`
+    })
+  }
+
+  });
   module.exports = router;
