@@ -462,7 +462,7 @@ router.get('/myorder/:id', async (req, res) => {
       currency: req.body.currency,
       });
       if (req.body.reference) {
-        console.log({ wholesale: true, sec: paymentIntent.client_secret });
+        console.log({ wholesale: true, sec: paymentIntent.client_secret, ref: res.body.reference });
       const up = `update beauwholesales set paymentreference=$1 where referenceid=$2`;
       const {rows} = await db.query(up, [paymentIntent.client_secret, req.body.reference]);
       console.log({rows});
