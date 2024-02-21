@@ -461,6 +461,8 @@ router.get('/myorder/:id', async (req, res) => {
       amount: Math.round(req.body.amount *100),
       currency: req.body.currency,
       });
+      const up = `update beauwholesales set paymentreference=$1 where referenceid=$2`;
+      const { rows } = await db.query(up, [paymentIntent.client_secret, req.body.reference]);
       res.json({ clientSecret: paymentIntent.client_secret });
       } catch (error) {
       res.status(500).json({ error: error.message });
