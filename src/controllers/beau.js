@@ -718,14 +718,12 @@ router.get('/myorder/:id', async (req, res) => {
 
     if (req.method === 'PUT') {
     
-    const createUser = `UPDATE beauwholesales set status=$1, paymentdate=$2, updatedat=$3, paymentstatus=$5 where paymentreference=$4 RETURNING *`;
+    const createUser = `UPDATE beauwholesales set status=$1, paymentdate=$2, updatedat=$2, paymentstatus=$3 where paymentreference=$4 RETURNING *`;
     const values = [
     req.body.status,
-    req.body.status,
     moment(new Date()),
-    moment(new Date()),
-    req.body.paymentref,
-    'PAID'
+    'PAID',
+    req.body.paymentref
       ];
     try {
     const { rows } = await db.query(createUser, values);
