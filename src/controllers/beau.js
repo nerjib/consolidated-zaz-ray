@@ -463,7 +463,7 @@ router.get('/myorder/:id', async (req, res) => {
       });
       if (req.body.reference) {
       const up = `update beauwholesales set paymentreference=$1 where referenceid=$2`;
-      const {rows} = await db.query(up, [`pk_${paymentIntent.client_secret.split('_')[1]}`, req.body.reference]);
+      const {rows} = await db.query(up, [`pi_${paymentIntent.client_secret.split('_')[1]}`, req.body.reference]);
       }
       res.json({ clientSecret: paymentIntent.client_secret });
       } catch (error) {
