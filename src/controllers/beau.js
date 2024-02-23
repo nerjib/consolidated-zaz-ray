@@ -569,7 +569,7 @@ router.get('/admin/consults', async (req, res) => {
   
     try {
       const up = `INSERT INTO beauconsults (customername, customerid, paymentref, status, paymentstatus, paymentdate, updatedat, code )
-      VALUES ($1, $2, $3, $4, $5, $6, $7 $8) RETURNING *`;
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
       const {customername, customerid, paymentref, paymentdate, updatedat} = req.body;
       const referenceid = referralCodeGenerator.alphaNumeric('uppercase', 2, 2);
       const values = [
