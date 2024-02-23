@@ -275,6 +275,61 @@ router.get('/myorder/:id', async (req, res) => {
   }
 });
   
+router.get('/consults/:id', async (req, res) => {
+  const getAllQ = `SELECT * from beauconsults where customerid=$1 order by "createdAt" asc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ, [req.params.id]);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Successful',
+        data:rows
+      });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
+router.get('/consults/active/:id', async (req, res) => {
+  const getAllQ = `SELECT * from beauconsults where customerid=$1 and status=$2 order by "createdAt" asc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ, [req.params.id, 'ACTIVE']);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Successful',
+        data:rows
+      });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
+  
+router.get('/admin/consults', async (req, res) => {
+  const getAllQ = `SELECT * from beauconsults order by "createdAt" asc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ);
+    return res.status(201).send(
+      {
+        status: true,
+        message: 'Successful',
+        data:rows
+      });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'User with that EMAIL already exist' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
 
   router.post('/addproducts',   async(req, res) => {
 
@@ -508,6 +563,66 @@ router.get('/myorder/:id', async (req, res) => {
 
   });
 
+  router.post('/consult-checkout',   async(req, res) => {
+
+    if (req.method === 'POST') {
+  
+    try {
+      const up = `INSERT INTO beauconsults (customername, customerid, paymentref, status, paymentstatus, paymentdate, updatedat ) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+      const {customername, customerid, paymentref, paymentdate, updatedat} = req.body;
+      const values = [
+        customername,
+        customerid,
+        paymentref,
+        'ACTIVE',
+        'PAID',
+        moment(new Date()),
+        moment(new Date())
+      ]
+      const {rows} = await db.query(up, values);
+      return res.status(201).send({status:true, message: 'successful', data:rows});
+      } catch (error) {
+      return res.status(400).send(error);
+      } 
+    // const session = await stripe.checkout.session.create({
+    //     payment_method: 'card',
+    //     line_items: lineItems,
+    //     mode: 'payment',
+    //     success_url: 'nerjib.github.io/beu/',
+    //     cancel_url: ''
+    // })
+    // res.json({id: session.id});
+    
+  //   const createUser = `INSERT INTO cart
+  //       (transactionid,datecreated, customerid, productid,status, amount)
+  //     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+  //   console.log(req.body)
+  //   const values = [
+  //   req.body.transactionid,
+  //   moment(new Date()),
+  //   req.body.category,
+  //   req.body.customerid,
+  //   req.body.productid,
+  //   req.body.status,
+  //   req.body.amount,
+  //     ];
+  //   try {
+  //   const { rows } = await db.query(createUser, values);
+  //   // console.log(rows);
+  //   //  return res.status(201).send(rows);
+  //   return res.status(201).send({status:true, message: 'successful', data:rows});
+  //   } catch (error) {
+  //   return res.status(400).send(error);
+  //   }  
+  // //  },{ resource_type: "auto", public_id: `ridafycovers/${req.body.title}` })
+} else {
+    res.status(405).json({
+      err: `${req.method} method not allowed`
+    })
+  }
+
+  });
 
   router.post('/addcart-checkoutb',   async(req, res) => {
 
