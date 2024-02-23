@@ -297,7 +297,7 @@ router.get('/consults/active/:id/:code', async (req, res) => {
   const getAllQ = `SELECT * from beauconsults where customerid=$1 and code=$2`;
   try {
     // const { rows } = qr.query(getAllQ);
-    const { rows } = await db.query(getAllQ, [req.params.id, req.body.code]);
+    const { rows } = await db.query(getAllQ, [req.params.id, req.params.code]);
     return res.status(201).send(
       {
         status: true,
