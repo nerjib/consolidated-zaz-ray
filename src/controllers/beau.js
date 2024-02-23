@@ -293,11 +293,11 @@ router.get('/consults/:id', async (req, res) => {
     return res.status(400).send(`${error} jsh`);
   }
 });
-router.get('/consults/active/:id', async (req, res) => {
-  const getAllQ = `SELECT * from beauconsults where customerid=$1 and status=$2 order by "createdAt" asc`;
+router.get('/consults/active/:id/:code', async (req, res) => {
+  const getAllQ = `SELECT * from beauconsults where customerid=$1 and code=$2`;
   try {
     // const { rows } = qr.query(getAllQ);
-    const { rows } = await db.query(getAllQ, [req.params.id, 'ACTIVE']);
+    const { rows } = await db.query(getAllQ, [req.params.id, req.body.code]);
     return res.status(201).send(
       {
         status: true,
