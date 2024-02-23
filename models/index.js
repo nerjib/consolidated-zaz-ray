@@ -40,6 +40,8 @@ db.plots = require("./plots.model.js")(sequelize, Sequelize);
 db.cart = require("./cart.model.js")(sequelize, Sequelize);
 db.wholesales = require("./wholesale.model.js")(sequelize, Sequelize);
 db.reviews = require("./reviews.model.js")(sequelize, Sequelize);
+db.consults = require("./consult.model.js")(sequelize, Sequelize);
+
 
 
 
