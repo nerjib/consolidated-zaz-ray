@@ -336,8 +336,8 @@ router.get('/admin/consults', async (req, res) => {
     if (req.method === 'POST') {
     
     const createUser = `INSERT INTO beauproducts
-        (name,datecreated, category,description, price,status,imgurl, nga, uk, ngprice, ukprice)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`;
+        (name,datecreated, category,description, price,status,imgurl, nga, uk, ngprice, ukprice, sex, skintype)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`;
     console.log(req.body)
     const values = [
     req.body.name,
@@ -350,7 +350,9 @@ router.get('/admin/consults', async (req, res) => {
     req.body.nga,
     req.body.uk,
     req.body.ngprice,
-    req.body.ukprice
+    req.body.ukprice,
+    req.body.sex,
+    req.body.skintype
       ];
     try {
     const { rows } = await db.query(createUser, values);
