@@ -15,17 +15,19 @@ async function addProduct(req, res, imgurl) {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`;
     //  console.log(req.body)
     const values = [
-      req.body.category,
-      req.body.description,
-      req.body.ukprice,
-      req.body.status,
-      req.body.ngprice,
-      req.body.imgurl,
-      req.body.nga,
-      req.body.uk,
-      req.body.ukprice,
-      req.body.sex,
-      req.body.skintype
+      req.body.name,
+    moment(new Date()),
+    req.body.category,
+    req.body.description,
+    req.body.ukprice,
+    req.body.status,
+    req.body.ngprice,
+    req.body.imgurl,
+    req.body.nga,
+    req.body.uk,
+    req.body.ukprice,
+    req.body.sex,
+    req.body.skintype
       ];
   try {
   const { rows } = await db.query(createProduct, values);
