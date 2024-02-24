@@ -11,19 +11,21 @@ const db = require('../db/index');
 
 async function addProduct(req, res, imgurl) {
     const createProduct = `INSERT INTO beauproducts
-        (name,datecreated, category,description, price,status,imgurl, nga, uk)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`;
-    console.log(req.body)
+        (name,datecreated, category,description, price,status, ngprice,imgurl, nga, uk, ukprice, sex, skintype)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`;
+    //  console.log(req.body)
     const values = [
-    req.body.name,
-    moment(new Date()),
-    req.body.category,
-    req.body.description,
-    req.body.price,
-    true,
-    imgurl,
-    req.body.nga,
-    req.body.uk
+      req.body.category,
+      req.body.description,
+      req.body.ukprice,
+      req.body.status,
+      req.body.ngprice,
+      req.body.imgurl,
+      req.body.nga,
+      req.body.uk,
+      req.body.ukprice,
+      req.body.sex,
+      req.body.skintype
       ];
   try {
   const { rows } = await db.query(createProduct, values);
