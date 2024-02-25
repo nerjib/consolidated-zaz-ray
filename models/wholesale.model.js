@@ -22,6 +22,9 @@ module.exports = (sequelize, Sequelize) => {
       address: {
         type: Sequelize.STRING,
       },
+      currency: {
+        type: Sequelize.STRING,
+      },
       status: {
         type: Sequelize.STRING,
       },

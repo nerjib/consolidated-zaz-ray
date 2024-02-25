@@ -801,7 +801,7 @@ router.get('/admin/consults', async (req, res) => {
 
   router.post('/addwholesale', async (req, res) => {
     try {
-      const { products, customername, customerid, address } = req.body;
+      const { products, customername, customerid, address, currency } = req.body;
       let dataP = [];
       const referenceid = referralCodeGenerator.alphaNumeric('uppercase', 2, 2);
       products.map((product) => (
@@ -813,6 +813,7 @@ router.get('/admin/consults', async (req, res) => {
             qty: product.qty ?? 1,
             status: 'PENDING',
             referenceid,
+            currency,
             address,
             createdat: moment(new Date())
           })
