@@ -31,6 +31,23 @@ router.get('/products', async (req, res) => {
     return res.status(400).send(`${error} jsh`);
   }
 });
+router.get('/wholesellerreq', async (req, res) => {
+  const getAllQ = `SELECT * FROM wholesellerrequests order by createdat desc`;
+  try {
+    // const { rows } = qr.query(getAllQ);
+    const { rows } = await db.query(getAllQ);
+    return res.status(201).send({
+      status: true,
+      data: rows,
+      message: 'successful'
+    });
+  } catch (error) {
+    if (error.routine === '_bt_check_unique') {
+      return res.status(400).send({ message: 'Error' });
+    }
+    return res.status(400).send(`${error} jsh`);
+  }
+});
 
 router.get('/products/:qry', async (req, res) => {
     const getAllQ = `SELECT * FROM beauproducts where name ILIKE $1`;
@@ -370,6 +387,37 @@ router.get('/admin/consults', async (req, res) => {
   }
 
   });
+
+  router.post('/wholesellerrequest',   async(req, res) => {
+
+    if (req.method === 'POST') {
+    
+    const createUser = `INSERT INTO wholesellerrequests
+        (customername,userid,status,createdat)
+      VALUES ($1, $2, $3, $4) RETURNING *`;
+    const values = [
+    req.body.customername,
+    req.body.userid,
+    'PENDING',
+    moment(new Date())
+      ];
+    try {
+    const { rows } = await db.query(createUser, values);
+    // console.log(rows);
+    //  return res.status(201).send(rows);
+    return res.status(201).send({status:true, message: 'successful', data:rows});
+    } catch (error) {
+    return res.status(400).send(error);
+    }  
+  //  },{ resource_type: "auto", public_id: `ridafycovers/${req.body.title}` })
+} else {
+    res.status(405).json({
+      err: `${req.method} method not allowed`
+    })
+  }
+
+  });
+
 
   router.post('/addcart',   async(req, res) => {
 
@@ -849,6 +897,39 @@ router.get('/admin/consults', async (req, res) => {
     // console.log(rows);
     //  return res.status(201).send(rows);
     return res.status(201).send({status:true, message: 'successful', data:rows});
+    } catch (error) {
+    return res.status(400).send(error);
+    }  
+  //  },{ resource_type: "auto", public_id: `ridafycovers/${req.body.title}` })
+} else {
+    res.status(405).json({
+      err: `${req.method} method not allowed`
+    })
+  }
+
+  });
+  router.put('/wholesellerrequest',   async(req, res) => {
+
+    if (req.method === 'POST') {
+    
+    const createUser = `UPDATE wholesellerrequests set status=$1, updatedat=$3 where userid=$2 RETURNING *`;
+    const updateUser = `UPDATE beauusers set "iswholeseller"=$1 where id=$2`;
+    const values = [
+    req.body.status,
+    req.body.userid,
+    moment(new Date())
+      ];
+    const uValues = [
+      req.body.status === 'APPROVED' ? true : false,
+      req.body.userid
+    ]
+    try {
+    const { rows } = await db.query(createUser, values);
+    const { rows : customerRow } = await db.query(updateUser, uValues);
+
+    // console.log(rows);
+    //  return res.status(201).send(rows);
+    return res.status(201).send({status:true, message: 'successful', data: {...rows, customerRow}});
     } catch (error) {
     return res.status(400).send(error);
     }  
