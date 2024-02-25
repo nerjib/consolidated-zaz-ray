@@ -142,7 +142,7 @@ router.get('/transactions', async (req, res) => {
 });
 
 router.get('/admin/allorder', async (req, res) => {
-  const getAllQ = `SELECT * from beucheckoutcarts order by "createdAt" asc`;
+  const getAllQ = `SELECT * from beucheckoutcarts order by "createdAt" desc`;
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ);
@@ -743,7 +743,7 @@ router.get('/admin/consults', async (req, res) => {
             productname: product.name,
             customername,
             customerid,
-            price: product.price * product.rate,
+            price: currency === 'NGN' ? product.ngprice: product.ukprice,
             qty: product.qty,
             status: 'PENDING',
             currency,
