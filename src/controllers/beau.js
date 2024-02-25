@@ -910,7 +910,7 @@ router.get('/admin/consults', async (req, res) => {
   });
   router.put('/wholesellerrequest',   async(req, res) => {
 
-    if (req.method === 'POST') {
+    if (req.method === 'PUT') {
     
     const createUser = `UPDATE wholesellerrequests set status=$1, updatedat=$3 where userid=$2 RETURNING *`;
     const updateUser = `UPDATE beauusers set "iswholeseller"=$1 where id=$2`;
