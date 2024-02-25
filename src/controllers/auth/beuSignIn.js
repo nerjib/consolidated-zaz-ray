@@ -38,6 +38,7 @@ router.post('/', async (req, res) => {
         customerName: rows[0].name,
         customerEmail: rows[0].email,
         isAdmin: rows[0].admin,
+        isWholeseller: rows[0].iswholeseller,
         deliveryAddress: rows[0].address,
         customerPhone: rows[0].phone,
         country: rows[0].country
