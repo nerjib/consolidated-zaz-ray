@@ -25,6 +25,9 @@ module.exports = (sequelize, Sequelize) => {
       status: {
         type: Sequelize.STRING,
       },
+      currency: {
+        type: Sequelize.STRING,
+      },
       referenceid: {
         type: Sequelize.STRING,
         primaryKey: true,
