@@ -735,7 +735,7 @@ router.get('/admin/consults', async (req, res) => {
 
   router.post('/addcart-checkout', async (req, res) => {
     try {
-      const { products, customername, customerid, referenceid, address } = req.body;
+      const { products, customername, customerid, referenceid, address, currency } = req.body;
       let dataP = [];
       products.map((product) => (
           dataP.push({
@@ -746,6 +746,7 @@ router.get('/admin/consults', async (req, res) => {
             price: product.price * product.rate,
             qty: product.qty,
             status: 'PENDING',
+            currency,
             referenceid,
             address,
           })
