@@ -74,7 +74,7 @@ async function main(kk) {
 
    const { data, error } = await resend.emails.send({
         from: 'Ridafy App <verify@ridafyapp.ng>',
-        to: `${kk} <${kk}>`,
+        to: [kk],
         subject: 'Account Verification',
         html: `Thanks for signing up to Ridafy! 
         <p>We want to make sure that we got your email right. Verifying your email will enable you to access  our content. Please verify your email by clicking the link below.
