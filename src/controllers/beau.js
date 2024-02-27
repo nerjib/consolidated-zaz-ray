@@ -10,9 +10,9 @@ const referralCodeGenerator = require('referral-code-generator')
 const db2 = require("../../models");
 const Cart = db2.cart;
 const Wholesale = db2.wholesales;
-import { Resend } from 'resend';
+// import { Resend } from 'resend';
 
-const resend = new Resend('re_Fq2r9YAV_92LWj77BvTnosCP8KtFcKH2Y');
+// const resend = new Resend('re_Fq2r9YAV_92LWj77BvTnosCP8KtFcKH2Y');
 
 
 
