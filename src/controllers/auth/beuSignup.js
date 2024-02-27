@@ -1,8 +1,8 @@
+const Resend = require("resend");
 const express = require('express');
 const moment = require('moment');
 const nodemailer = require("nodemailer");
 let referralCodeGenerator = require('referral-code-generator')
-import { Resend } from "resend";
 
 const resend = new Resend("753993e7-cdaf-4f0c-b4f5-89b288b1562b");
 

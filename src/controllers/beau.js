@@ -760,13 +760,13 @@ router.get('/admin/consults', async (req, res) => {
             res.status(200).send({
               status: true,
               message: "cart updated successfully",
-            });
-            resend.emails.send({
-              from: 'onboarding@resend.dev',
-              to: 'meu@yopmail.com',
-              subject: 'Payment is successful',
-              html: '<p>Youl be notified</p>'
-            });
+            })
+            // resend.emails.send({
+            //   from: 'onboarding@resend.dev',
+            //   to: 'meu@yopmail.com',
+            //   subject: 'Payment is successful',
+            //   html: '<p>Youl be notified</p>'
+            // });
           })
           .catch((error) => {
             res.status(500).send({
