@@ -12,15 +12,28 @@ const Helper = require('../helpers/helpers');
 const router = express.Router();
 const db = require('../../db/index');
     router.get('/kk', async (req, res) => {
-    let kkk= []
-     /*     const text = 'SELECT email FROM users';
-          const { rows } = await db.query(text);
-          const rowlength = rows.length
-          Object.keys(rows).map(async(e,i)=>{
-              await main(rows[e].email)
-          })*/
-          //  return res.json(rowlength)
-            await   main('kabirnajib0@gmail.com')
+      const { data, error } = await resend.emails.send({
+        from: "Acme <onboarding@resend.dev>",
+        to: ["kabirnajib0@gmail.com"],
+        subject: "hello world",
+        html: "<strong>it works!</strong>",
+      });
+    
+      if (error) {
+        return res.status(400).json({ error });
+      }
+    
+      res.status(200).json({ data })
+
+    // let kkk= []
+    //  /*     const text = 'SELECT email FROM users';
+    //       const { rows } = await db.query(text);
+    //       const rowlength = rows.length
+    //       Object.keys(rows).map(async(e,i)=>{
+    //           await main(rows[e].email)
+    //       })*/
+    //       //  return res.json(rowlength)
+    //         await   main('kabirnajib0@gmail.com')
 
 
             });
