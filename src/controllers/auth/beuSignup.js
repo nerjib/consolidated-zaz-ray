@@ -1,4 +1,4 @@
-const Resend =  rquire('resend');
+const Resend =  require('resend');
 const express = require('express');
 const moment = require('moment');
 const nodemailer = require("nodemailer");
