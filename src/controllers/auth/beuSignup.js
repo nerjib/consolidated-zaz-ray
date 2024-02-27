@@ -86,7 +86,8 @@ async function main(kk) {
 
       if (error) {
         return res.status(400).json({ error });
-      }   
+      }
+      console.log({data});
       res.status(200).json({ data });
 
  }
