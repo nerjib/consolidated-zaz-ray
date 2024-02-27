@@ -10,6 +10,9 @@ const referralCodeGenerator = require('referral-code-generator')
 const db2 = require("../../models");
 const Cart = db2.cart;
 const Wholesale = db2.wholesales;
+import { Resend } from 'resend';
+
+const resend = new Resend('re_Fq2r9YAV_92LWj77BvTnosCP8KtFcKH2Y');
 
 
 
@@ -236,7 +239,7 @@ router.get('/admin/wholesellers-req', async (req, res) => {
 });
 
 router.get('/wholesellers-cart/:id', async (req, res) => {
-  const getAllQ = `SELECT distinct(referenceid), customername, customerid, status, "createdAt" from beauwholesales where customerid=$1 order by "createdAt" desc`;
+  const getAllQ = `SELECT distinct(referenceid), customername, customerid, status, "createdAt", currency from beauwholesales where customerid=$1 order by "createdAt" desc`;
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ, [req.params.id]);
@@ -757,6 +760,12 @@ router.get('/admin/consults', async (req, res) => {
             res.status(200).send({
               status: true,
               message: "cart updated successfully",
+            });
+            resend.emails.send({
+              from: 'onboarding@resend.dev',
+              to: 'meu@yopmail.com',
+              subject: 'Payment is successful',
+              html: '<p>Youl be notified</p>'
             });
           })
           .catch((error) => {

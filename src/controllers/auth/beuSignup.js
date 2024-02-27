@@ -2,6 +2,9 @@ const express = require('express');
 const moment = require('moment');
 const nodemailer = require("nodemailer");
 let referralCodeGenerator = require('referral-code-generator')
+const Resend = require('resend');
+
+const resend = new Resend("753993e7-cdaf-4f0c-b4f5-89b288b1562b");
 
 const Helper = require('../helpers/helpers');
 
@@ -59,16 +62,16 @@ const db = require('../../db/index');
     
 
 async function main(kk) {
-  var transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-           user: 'ridafyinfp@gmail.com',
-           pass: 'ridafyapp2020'
-       }
-   });
+  // var transporter = nodemailer.createTransport({
+  //   service: 'gmail',
+  //   auth: {
+  //          user: 'ridafyinfp@gmail.com',
+  //          pass: 'ridafyapp2020'
+  //      }
+  //  });
    var hashEmail = await Helper.emailToken(kk);
 
-      let message = {
+   const { data, error } = await resend.emails.send({
         from: 'Ridafy App <verify@ridafyapp.ng>',
         to: `${kk} <${kk}>`,
         subject: 'Account Verification',
@@ -78,14 +81,12 @@ async function main(kk) {
         <p><b>Complete Verification<b/></p>        
         <p><b><a href='https://ridafyapp.herokuapp.com/api/v1/auth/signup/authmail/${hashEmail}'><h3>Click here</h3></a></b></p>`,
 
-    };
+      });
 
-    await transporter.sendMail(message, function (err, info) {
-      if(err)
-        console.log(err)
-      else
-        console.log(info);
-   });
+      if (error) {
+        return res.status(400).json({ error });
+      }   
+      res.status(200).json({ data });
 
  }
 
@@ -136,6 +137,7 @@ router.post('/', async (req, res) => {
       data: {
         message: 'User account successfully created waiting for email cofirmation',
         token,
+        referralCode: rows[0].referralcode,
         userId: rows[0].id,
       },
     };
