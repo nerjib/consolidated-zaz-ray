@@ -1,4 +1,4 @@
-const Resend = require("resend");
+import { Resend } from 'resend';
 const express = require('express');
 const moment = require('moment');
 const nodemailer = require("nodemailer");
