@@ -1,10 +1,10 @@
-import { Resend } from 'resend';
+// import { Resend } from 'resend';
 const express = require('express');
 const moment = require('moment');
 const nodemailer = require("nodemailer");
 let referralCodeGenerator = require('referral-code-generator')
 
-const resend = new Resend("753993e7-cdaf-4f0c-b4f5-89b288b1562b");
+// const resend = new Resend("753993e7-cdaf-4f0c-b4f5-89b288b1562b");
 
 const Helper = require('../helpers/helpers');
 
@@ -71,22 +71,22 @@ async function main(kk) {
   //  });
    var hashEmail = await Helper.emailToken(kk);
 
-   const { data, error } = await resend.emails.send({
-        from: 'Ridafy App <verify@ridafyapp.ng>',
-        to: `${kk} <${kk}>`,
-        subject: 'Account Verification',
-        html: `Thanks for signing up to Ridafy! 
-        <p>We want to make sure that we got your email right. Verifying your email will enable you to access  our content. Please verify your email by clicking the link below.
-        </p>
-        <p><b>Complete Verification<b/></p>        
-        <p><b><a href='https://ridafyapp.herokuapp.com/api/v1/auth/signup/authmail/${hashEmail}'><h3>Click here</h3></a></b></p>`,
+  //  const { data, error } = await resend.emails.send({
+  //       from: 'Ridafy App <verify@ridafyapp.ng>',
+  //       to: `${kk} <${kk}>`,
+  //       subject: 'Account Verification',
+  //       html: `Thanks for signing up to Ridafy! 
+  //       <p>We want to make sure that we got your email right. Verifying your email will enable you to access  our content. Please verify your email by clicking the link below.
+  //       </p>
+  //       <p><b>Complete Verification<b/></p>        
+  //       <p><b><a href='https://ridafyapp.herokuapp.com/api/v1/auth/signup/authmail/${hashEmail}'><h3>Click here</h3></a></b></p>`,
 
-      });
+  //     });
 
-      if (error) {
-        return res.status(400).json({ error });
-      }   
-      res.status(200).json({ data });
+  //     if (error) {
+  //       return res.status(400).json({ error });
+  //     }   
+  //     res.status(200).json({ data });
 
  }
 
