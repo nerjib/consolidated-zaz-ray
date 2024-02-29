@@ -118,7 +118,7 @@ await transporter.sendMail(message, function (err, info) {
     to: `${kk} <${kk}>`,
     subject: 'Welcome Onboard',
     html: `Thanks for signing up to Beautyhub! 
-    <p>Referal Code<b> ${det.referalCode}<b/></p>`   
+    <p>Referal Code<b> ${det.referralCode}<b/></p>`   
 
 };
 
