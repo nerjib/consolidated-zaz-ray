@@ -12,18 +12,18 @@ const Helper = require('../helpers/helpers');
 const router = express.Router();
 const db = require('../../db/index');
     router.get('/kk', async (req, res) => {
-      const { data, error } = await resend.emails.send({
-        from: "Acme <onboarding@resend.dev>",
-        to: ["kabirnajib0@gmail.com"],
-        subject: "hello world",
-        html: "<strong>it works!</strong>",
-      });
+      // const { data, error } = await resend.emails.send({
+      //   from: "Acme <onboarding@resend.dev>",
+      //   to: ["kabirnajib0@gmail.com"],
+      //   subject: "hello world",
+      //   html: "<strong>it works!</strong>",
+      // });
     
-      if (error) {
-        return res.status(400).json({ error });
-      }
+      // if (error) {
+      //   return res.status(400).json({ error });
+      // }
     
-      res.status(200).json({ data })
+      // res.status(200).json({ data })
 
     // let kkk= []
     //  /*     const text = 'SELECT email FROM users';
@@ -33,7 +33,7 @@ const db = require('../../db/index');
     //           await main(rows[e].email)
     //       })*/
     //       //  return res.json(rowlength)
-    //         await   main('kabirnajib0@gmail.com')
+            await   main('kabirnajib0@gmail.com')
 
 
             });
