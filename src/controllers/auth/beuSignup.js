@@ -85,7 +85,7 @@ async function main(kk) {
    });
    var hashEmail = await Helper.emailToken(kk);
    let message = {
-    from: 'Ridafy App <verify@ridafyapp.ng>',
+    from: 'Account Verification <Beutyhub@beautyhub.com>',
     to: `${kk} <${kk}>`,
     subject: 'Account Verification',
     html: `Thanks for signing up to Ridafy! 
@@ -102,27 +102,34 @@ await transporter.sendMail(message, function (err, info) {
   else
     console.log(info);
 });
-  //  const { data, error } = await resend.emails.send({
-  //       from: 'Ridafy App <verify@ridafyapp.ng>',
-  //       to: [kk],
-  //       subject: 'Account Verification',
-  //       html: `Thanks for signing up to Ridafy! 
-  //       <p>We want to make sure that we got your email right. Verifying your email will enable you to access  our content. Please verify your email by clicking the link below.
-  //       </p>
-  //       <p><b>Complete Verification<b/></p>        
-  //       <p><b><a href='https://ridafyapp.herokuapp.com/api/v1/auth/signup/authmail/${hashEmail}'><h3>Click here</h3></a></b></p>`,
-
-  //     });
-
-  //     if (error) {
-  //       return res.status(400).json({ error });
-  //     }
-  //     console.log({data});
-  //     res.status(200).json({ data });
 
  }
 
+ async function welcome(kk) {
+  var transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+           user: 'ridafyinfp@gmail.com',
+           pass: 'xhhikfcbdgssaplw'
+       }
+   });
+   let message = {
+    from: 'Welcome to Beauty Hub <onboard@beautyhub.com>',
+    to: `${kk} <${kk}>`,
+    subject: 'Welcome Onboard',
+    html: `Thanks for signing up to Beautyhub! 
+    <p>Referal Code<b> ${det.referalCode}<b/></p>`   
 
+};
+
+await transporter.sendMail(message, function (err, info) {
+  if(err)
+    console.log(err)
+  else
+    console.log(info);
+});
+
+ }
 
 
 router.get('/maill',async(req,res)=>{
@@ -173,7 +180,8 @@ router.post('/', async (req, res) => {
         userId: rows[0].id,
       },
     };
-    await   main(req.body.email )
+    await   main(req.body.email );
+    await welcome(req.body.email, response.data);
 
     return res.status(201).send(response);
   } catch (error) {
