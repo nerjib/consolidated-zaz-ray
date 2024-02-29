@@ -27,7 +27,7 @@ async function orderMessage(email, det) {
    let othermessage = `You order ${det[0]?.referenceid} has been confirm
    <p>You will be notified regarding delivery on <p>
    ${
-    det.product.map((e, i) => `
+    det.map((e, i) => `
     <table>
       <tr><th>SN</th><th>Product</th><th>Qty</th><th>unit price</th></tr>
       <tr><td>${i+1}</td><td>${e.productname}</td><td>${e.qty}</td><td>${e.price}</td></tr>
