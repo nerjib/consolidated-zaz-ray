@@ -76,32 +76,49 @@ const db = require('../../db/index');
     
 
 async function main(kk) {
-  // var transporter = nodemailer.createTransport({
-  //   service: 'gmail',
-  //   auth: {
-  //          user: 'ridafyinfp@gmail.com',
-  //          pass: 'ridafyapp2020'
-  //      }
-  //  });
+  var transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+           user: 'ridafyinfp@gmail.com',
+           pass: 'xhhikfcbdgssaplw'
+       }
+   });
    var hashEmail = await Helper.emailToken(kk);
+   let message = {
+    from: 'Ridafy App <verify@ridafyapp.ng>',
+    to: `${kk} <${kk}>`,
+    subject: 'Account Verification',
+    html: `Thanks for signing up to Ridafy! 
+    <p>We want to make sure that we got your email right. Verifying your email will enable you to access  our content. Please verify your email by clicking the link below.
+    </p>
+    <p><b>Complete Verification<b/></p>        
+    <p><b><a href='https://ridafyapp.herokuapp.com/api/v1/auth/signup/authmail/${hashEmail}'><h3>Click here</h3></a></b></p>`,
 
-   const { data, error } = await resend.emails.send({
-        from: 'Ridafy App <verify@ridafyapp.ng>',
-        to: [kk],
-        subject: 'Account Verification',
-        html: `Thanks for signing up to Ridafy! 
-        <p>We want to make sure that we got your email right. Verifying your email will enable you to access  our content. Please verify your email by clicking the link below.
-        </p>
-        <p><b>Complete Verification<b/></p>        
-        <p><b><a href='https://ridafyapp.herokuapp.com/api/v1/auth/signup/authmail/${hashEmail}'><h3>Click here</h3></a></b></p>`,
+};
 
-      });
+await transporter.sendMail(message, function (err, info) {
+  if(err)
+    console.log(err)
+  else
+    console.log(info);
+});
+  //  const { data, error } = await resend.emails.send({
+  //       from: 'Ridafy App <verify@ridafyapp.ng>',
+  //       to: [kk],
+  //       subject: 'Account Verification',
+  //       html: `Thanks for signing up to Ridafy! 
+  //       <p>We want to make sure that we got your email right. Verifying your email will enable you to access  our content. Please verify your email by clicking the link below.
+  //       </p>
+  //       <p><b>Complete Verification<b/></p>        
+  //       <p><b><a href='https://ridafyapp.herokuapp.com/api/v1/auth/signup/authmail/${hashEmail}'><h3>Click here</h3></a></b></p>`,
 
-      if (error) {
-        return res.status(400).json({ error });
-      }
-      console.log({data});
-      res.status(200).json({ data });
+  //     });
+
+  //     if (error) {
+  //       return res.status(400).json({ error });
+  //     }
+  //     console.log({data});
+  //     res.status(200).json({ data });
 
  }
 
