@@ -105,7 +105,7 @@ await transporter.sendMail(message, function (err, info) {
 
  }
 
- async function welcome(kk) {
+ async function welcome(kk, det) {
   var transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
