@@ -88,11 +88,11 @@ async function main(kk) {
     from: 'Account Verification <Beutyhub@beautyhub.com>',
     to: `${kk} <${kk}>`,
     subject: 'Account Verification',
-    html: `Thanks for signing up to Ridafy! 
+    html: `Thanks for signing up to Beauty Hub! 
     <p>We want to make sure that we got your email right. Verifying your email will enable you to access  our content. Please verify your email by clicking the link below.
     </p>
     <p><b>Complete Verification<b/></p>        
-    <p><b><a href='https://ridafyapp.herokuapp.com/api/v1/auth/signup/authmail/${hashEmail}'><h3>Click here</h3></a></b></p>`,
+    <p><b><a href='https://nmszazzau.herokuapp.com/api/v1/auth/signup/authmail/${hashEmail}'><h3>Click here</h3></a></b></p>`,
 
 };
 

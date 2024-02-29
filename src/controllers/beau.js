@@ -6,6 +6,7 @@ const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
+const nodemailer = require("nodemailer");
 const referralCodeGenerator = require('referral-code-generator')
 const db2 = require("../../models");
 const Cart = db2.cart;
@@ -15,6 +16,41 @@ const Wholesale = db2.wholesales;
 // const resend = new Resend('re_Fq2r9YAV_92LWj77BvTnosCP8KtFcKH2Y');
 
 
+async function orderMessage(email, det) {
+  var transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+           user: 'ridafyinfp@gmail.com',
+           pass: 'xhhikfcbdgssaplw'
+       }
+   });
+   let othermessage = `You order ${det[0]?.referenceid} has been confirm
+   <p>You will be notified regarding delivery on <p>
+   ${
+    det.product.map((e, i) => 
+    <table>
+      <tr><th>SN</th><th>Product</th><th>Qty</th><th>unit price</th></tr>
+      <tr><td>{i+1}</td><td>{e.productname}</td><td>{e.qty}</td><td>{e.price}</td></tr>
+    </table>
+    )}
+    <p>Amount: ${det[0].amount}</p>
+    <p>Thank you for your patronage</P`
+   let message = {
+    from: 'Beauty Hub <order@beautyhub.com>',
+    to: `${email} <${email}>`,
+    subject: 'Payment Confirm',
+    html: othermessage   
+
+};
+
+await transporter.sendMail(message, function (err, info) {
+  if(err)
+    console.log(err)
+  else
+    console.log(info);
+});
+
+ }
 
 
 router.get('/products', async (req, res) => {
@@ -777,6 +813,7 @@ router.get('/admin/consults', async (req, res) => {
               status: true,
               message: "cart updated successfully",
             })
+            orderMessage('kabirnajib0@gmail.com', dataP)
             // resend.emails.send({
             //   from: 'onboarding@resend.dev',
             //   to: 'meu@yopmail.com',
