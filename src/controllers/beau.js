@@ -53,14 +53,14 @@ let wsCheckout = {
   from: 'Beauty Hub <order@beautyhub.com>',
   to: `${email} <${email}>`,
   subject: 'Wholesale Payment',
-  html: `Your payment for ${det?.ref} has been received`
+  html: `Your payment for ${det[2]} has been received`
 }
 let consultM = {
   from: 'Beauty Hub <order@beautyhub.com>',
   to: `${email} <${email}>`,
   subject: 'Consulttion Payment',
   html: `Your payment payment Id: ${det?.paymentref} has been received. Use the code below to book an appointment
-  <p> Code: ${det?.referenceid}</p>`
+  <p> Code: ${det[7]}</p>`
 }
 
 await transporter.sendMail( type === 'wsReq' ? wsRequest : type === 'consult' ? consultM : type === 'wscheckout' ? wsCheckout : message, function (err, info) {
