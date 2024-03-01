@@ -16,7 +16,7 @@ const Wholesale = db2.wholesales;
 // const resend = new Resend('re_Fq2r9YAV_92LWj77BvTnosCP8KtFcKH2Y');
 
 
-async function orderMessage(email, det) {
+async function orderMessage(email, type, det) {
   var transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -33,8 +33,8 @@ async function orderMessage(email, det) {
       <tr><td>${i+1}</td><td>${e.productname}</td><td>${e.qty}</td><td>${e.price}</td></tr>`
     )}
     </table>
-    <p>Amount: ${det[0].price}</p>
-    <p>Thank you for your patronage</P>`
+    <p>Thank you for your patronage</P>`;
+    let wsRequest = `Your Request has been submitted. You'll receive notification on the status of your application in 24-48 hrs`
    let message = {
     from: 'Beauty Hub <order@beautyhub.com>',
     to: `${email} <${email}>`,
@@ -42,8 +42,27 @@ async function orderMessage(email, det) {
     html: othermessage   
 
 };
+let wsRmessage = {
+  from: 'Beauty Hub <order@beautyhub.com>',
+  to: `${email} <${email}>`,
+  subject: 'Wholesale Request',
+  html: wsRequest  
+}
 
-await transporter.sendMail(message, function (err, info) {
+let wsCheckout = {
+  from: 'Beauty Hub <order@beautyhub.com>',
+  to: `${email} <${email}>`,
+  subject: 'Wholesale Payment',
+  html: `Your payment for ${det?.ref} has been received`
+}
+let consultM = {
+  from: 'Beauty Hub <order@beautyhub.com>',
+  to: `${email} <${email}>`,
+  subject: 'Consulttion Payment',
+  html: `Your payment reference ID: ${det?.referenceid} payment Id: ${det?.paymentref} has been received`
+}
+
+await transporter.sendMail( type === 'wsReq' ? wsRequest : type === 'consult' ? consultM : type === 'wscheckout' ? wsCheckout : message, function (err, info) {
   if(err)
     console.log(err)
   else
@@ -495,6 +514,7 @@ router.get('/admin/consults', async (req, res) => {
     const { rows } = await db.query(createUser, values);
     // console.log(rows);
     //  return res.status(201).send(rows);
+
     return res.status(201).send({status:true, message: 'successful', data:rows});
     } catch (error) {
     return res.status(400).send(error);
@@ -675,7 +695,7 @@ router.get('/admin/consults', async (req, res) => {
     try {
       const up = `INSERT INTO beauconsults (customername, customerid, paymentref, status, paymentstatus, paymentdate, updatedat, code )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
-      const {customername, customerid, paymentref, paymentdate, updatedat} = req.body;
+      const {customername, customerid, paymentref, paymentdate, updatedat, email} = req.body;
       const referenceid = referralCodeGenerator.alphaNumeric('uppercase', 2, 2);
       const values = [
         customername,
@@ -688,6 +708,7 @@ router.get('/admin/consults', async (req, res) => {
         referenceid
       ]
       const {rows} = await db.query(up, values);
+      orderMessage(email, 'consult', values);
       return res.status(201).send({status:true, message: 'successful', data:rows});
       } catch (error) {
       return res.status(400).send(error);
@@ -790,7 +811,7 @@ router.get('/admin/consults', async (req, res) => {
 
   router.post('/addcart-checkout', async (req, res) => {
     try {
-      const { products, customername, customerid, referenceid, address, currency } = req.body;
+      const { products, customername, customerid, referenceid, address, currency, email } = req.body;
       let dataP = [];
       products.map((product) => (
           dataP.push({
@@ -813,7 +834,7 @@ router.get('/admin/consults', async (req, res) => {
               status: true,
               message: "cart updated successfully",
             })
-            orderMessage('kabirnajib0@gmail.com', dataP)
+            orderMessage(customerid,'order', dataP)
             // resend.emails.send({
             //   from: 'onboarding@resend.dev',
             //   to: 'meu@yopmail.com',
@@ -960,6 +981,7 @@ router.get('/admin/consults', async (req, res) => {
     const { rows } = await db.query(createUser, values);
     // console.log(rows);
     //  return res.status(201).send(rows);
+    orderMessage(res.body.email, 'wscheckout',{ref: req.body.paymentref});
     return res.status(201).send({status:true, message: 'successful', data:rows});
     } catch (error) {
     return res.status(400).send(error);
