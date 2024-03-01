@@ -59,7 +59,8 @@ let consultM = {
   from: 'Beauty Hub <order@beautyhub.com>',
   to: `${email} <${email}>`,
   subject: 'Consulttion Payment',
-  html: `Your payment reference ID: ${det?.referenceid} payment Id: ${det?.paymentref} has been received`
+  html: `Your payment payment Id: ${det?.paymentref} has been received. Use the code below to book an appointment
+  <p> Code: ${det?.referenceid}</p>`
 }
 
 await transporter.sendMail( type === 'wsReq' ? wsRequest : type === 'consult' ? consultM : type === 'wscheckout' ? wsCheckout : message, function (err, info) {
