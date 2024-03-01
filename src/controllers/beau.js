@@ -26,15 +26,15 @@ async function orderMessage(email, det) {
    });
    let othermessage = `You order ${det[0]?.referenceid} has been confirm
    <p>You will be notified regarding delivery on <p>
+   <table>
+   <tr><th>SN</th><th>Product</th><th>Qty</th><th>unit price</th></tr>
    ${
     det.map((e, i) => `
-    <table>
-      <tr><th>SN</th><th>Product</th><th>Qty</th><th>unit price</th></tr>
-      <tr><td>${i+1}</td><td>${e.productname}</td><td>${e.qty}</td><td>${e.price}</td></tr>
-    </table>`
+      <tr><td>${i+1}</td><td>${e.productname}</td><td>${e.qty}</td><td>${e.price}</td></tr>`
     )}
-    <p>Amount: ${det[0].amount}</p>
-    <p>Thank you for your patronage</P`
+    </table>
+    <p>Amount: ${det[0].price}</p>
+    <p>Thank you for your patronage</P>`
    let message = {
     from: 'Beauty Hub <order@beautyhub.com>',
     to: `${email} <${email}>`,
