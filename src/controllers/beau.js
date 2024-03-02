@@ -400,12 +400,20 @@ router.get('/consults/active/:id/:code', async (req, res) => {
   try {
     // const { rows } = qr.query(getAllQ);
     const { rows } = await db.query(getAllQ, [req.params.id, req.params.code]);
+    if (rows.length > 0) {
     return res.status(201).send(
       {
         status: true,
         message: 'Successful',
         data:rows
       });
+    } else {
+      return res.status(201).send(
+        {
+          status: false,
+          message: 'Code not active',
+        });
+    }
   } catch (error) {
     if (error.routine === '_bt_check_unique') {
       return res.status(400).send({ message: 'User with that EMAIL already exist' });
