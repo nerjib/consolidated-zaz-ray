@@ -53,13 +53,13 @@ let wsCheckout = {
   from: 'Beauty Hub <order@beautyhub.com>',
   to: `${email} <${email}>`,
   subject: 'Wholesale Payment',
-  html: `Your payment for ${det[2]} has been received`
+  html: `Your payment for ${det?.ref} has been received`
 }
 let consultM = {
   from: 'Beauty Hub <order@beautyhub.com>',
   to: `${email} <${email}>`,
   subject: 'Consulttion Payment',
-  html: `Your payment payment Id: ${det?.paymentref} has been received. Use the code below to book an appointment
+  html: `Your payment payment Id: ${det[2]} has been received. Use the code below to book an appointment
   <p> Code: ${det[7]}</p>`
 }
 
@@ -929,6 +929,7 @@ router.get('/admin/consults', async (req, res) => {
 
   router.put('/addwholesale', async (req, res) => {
       const { products, adminid } = req.body;
+      const customerId = products[0].customerid;
       let dataP = [];
       products.map((product) => (
           dataP.push({
@@ -954,6 +955,9 @@ router.get('/admin/consults', async (req, res) => {
           //     error: error.message,
           //   });
           // });
+          const getUserD = `select * from beauusers where id=$1`;
+          const { rows } = await db.query(getUserD, [customerId]);
+          console.log({ rows });
           res.status(200).send({
             status: true,
             message: "cart updated successfully",
