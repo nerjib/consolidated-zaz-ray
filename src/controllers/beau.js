@@ -58,12 +58,20 @@ let wsCheckout = {
 let consultM = {
   from: 'Beauty Hub <order@beautyhub.com>',
   to: `${email} <${email}>`,
-  subject: 'Consulttion Payment',
+  subject: 'Consultation Payment',
   html: `Your payment payment Id: ${det[2]} has been received. Use the code below to book an appointment
   <p> Code: ${det[7]}</p>`
 }
+let reviewM = {
+  from: 'Beauty Hub <order@beautyhub.com>',
+  to: `${email} <${email}>`,
+  subject: `Order ${det[0].referenceid} Reviewed`,
+  html: `Your wholesale purchase with reference ${det[0].reference} has been reviewed you can proceed with payment
+  <a href='https://wholesalebeautyhub.com'> Click here to proceed</a>
+  <p>Thank you for your patronage</p>`
+}
 
-await transporter.sendMail( type === 'wsReq' ? wsRequest : type === 'consult' ? consultM : type === 'wscheckout' ? wsCheckout : message, function (err, info) {
+await transporter.sendMail( type === 'wsReq' ? wsRequest : type ==='review' ? reviewM : type === 'consult' ? consultM : type === 'wscheckout' ? wsCheckout : message, function (err, info) {
   if(err)
     console.log(err)
   else
@@ -957,7 +965,7 @@ router.get('/admin/consults', async (req, res) => {
           // });
           const getUserD = `select * from beauusers where id=$1`;
           const { rows } = await db.query(getUserD, [customerId]);
-          console.log({ rows });
+          orderMessage(rows[0].email, 'review', products)
           res.status(200).send({
             status: true,
             message: "cart updated successfully",
