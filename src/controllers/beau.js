@@ -66,7 +66,9 @@ let reviewM = {
   from: 'Beauty Hub <order@beautyhub.com>',
   to: `${email} <${email}>`,
   subject: `Order ${det[0].referenceid} Reviewed`,
-  html: `Your wholesale purchase with reference ${det[0].referenceid} has been reviewed you can proceed with payment.
+  html: `
+  <p>Dear Customer</p>
+  Your wholesale purchase with reference ${det[0].referenceid} has been reviewed you can proceed with payment.
   <a href='https://wholesalebeautyhub.com'> Click here to proceed</a>
   <p>Thank you for your patronage</p>`
 }
