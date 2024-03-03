@@ -41,7 +41,8 @@ router.post('/', async (req, res) => {
         isWholeseller: rows[0].iswholeseller,
         deliveryAddress: rows[0].address,
         customerPhone: rows[0].phone,
-        country: rows[0].country
+        country: rows[0].country,
+        referralCode: rows[0].referralcode
       },
     };
 
