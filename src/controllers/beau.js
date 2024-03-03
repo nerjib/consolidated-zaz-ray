@@ -4,11 +4,13 @@ const stripe = require('stripe')('sk_test_51KPk4hG3qtUfMBk1g045CSDKbRInzr7aAC8pK
 const router = express.Router();
 const db = require('../db/index');
 const dotenv = require('dotenv');
+const fs = require('fs');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
 const nodemailer = require("nodemailer");
 const referralCodeGenerator = require('referral-code-generator')
 const db2 = require("../../models");
+const path = require('path');
 const Cart = db2.cart;
 const Wholesale = db2.wholesales;
 // import { Resend } from 'resend';
@@ -140,6 +142,14 @@ router.get('/products/:qry', async (req, res) => {
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ,[req.params.id]);
+      const fullUrl =
+      request.protocol + '://' + request.get('host') + request.originalUrl;
+    const filePath = path.resolve(__dirname, './dist', 'index.html');
+  
+      fs.readFile(filePath, 'utf8', async function (err, data) {
+        if (err) {
+          return console.log(err);
+        }
       const post = rows[0];
       const images = post?.imgurl;
   
@@ -178,6 +188,7 @@ router.get('/products/:qry', async (req, res) => {
       //   result = data.replace(/\$OG_IMAGE/g, post.PostImages[0].imageURL);
       // }
        res.send(result);
+        })
       return res.status(201).send({
         status: true,
         data: rows,
