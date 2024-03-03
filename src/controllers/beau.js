@@ -142,10 +142,10 @@ router.get('/products/:qry', async (req, res) => {
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ,[req.params.id]);
-      console.log({req});
+      console.log({req: req.get('origin')});
       const fullUrl =
       req.protocol + '://' + req.get('host') + req.originalUrl;
-    const filePath = path.resolve(__dirname, './dist', 'index.html');
+    const filePath = path.resolve('https://wholesalebeautyhub.com/', './dist', 'index.html');
   
       fs.readFile(filePath, 'utf8', async function (err, data) {
         if (err) {
