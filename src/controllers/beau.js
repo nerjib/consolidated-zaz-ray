@@ -140,6 +140,44 @@ router.get('/products/:qry', async (req, res) => {
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ,[req.params.id]);
+      const post = rows[0];
+      const images = post?.imgurl;
+  
+      const imageURL = images ?? `https://wholesalebeautyhub.com/assets/beulog-Nh1TnFFN.png`;
+      const description = post?.description || 'Beauty Hub';
+      let result = data
+        .replace('__META_OG_IMAGE__', imageURL)
+        .replace('__META_TW_IMAGE__', imageURL)
+        .replace('__META_TWSRC_IMAGE__', imageURL)
+        .replace('__META_MS_IMAGE__', imageURL)
+        .replace('__META_OG_TITLE__', description)
+        .replace('__META_TW_TITLE__', description)
+        .replace(
+          '<title>Beauty Hub/title>',
+          `<title>${description}...</title>`
+        )
+        .replace('__META_OG_DESCRIPTION__', description)
+        .replace('__META_TW_DESCRIPTION__', description)
+        .replace('__META_DESCRIPTION__', description)
+        .replace('__TW_URL__', fullUrl)
+        .replace('__TWD_URL__', fullUrl)
+        .replace('__OG_URL__', fullUrl);
+  
+      // data = data.replace(
+      //   /\$OG_TITLE/g,
+      //   post.description.substr(0, 20) + '...'
+      // );
+      // data = data.replace(/\$OG_DESCRIPTION/g, post.description.substr(0, 50));
+      // data = data.replace(
+      //   /\$OG_URL/g,
+      //   `${process.env.REACT_APP_FRONTEND}/post/${id}?from=shared`
+      // );
+      // if (Array.isArray(post.PostImages)) {
+      //   result = data.replace(/\$OG_IMAGE/g, post.PostImages[0].imageURL);
+      // } else {
+      //   result = data.replace(/\$OG_IMAGE/g, post.PostImages[0].imageURL);
+      // }
+       res.send(result);
       return res.status(201).send({
         status: true,
         data: rows,
