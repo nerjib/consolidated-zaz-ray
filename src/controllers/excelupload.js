@@ -137,12 +137,12 @@ router.post('/customers', async (req, res) => {
         readXlsxFile(path).then((rowss) => {
 
           console.log('rewshhh',rowss[3]);
-          if( rowss[3][1] !=='Staff ID'|| rowss[3][2] !=='Legacy Id' || rowss[3][3] !=='Full Name'|| rowss[3][4] !=='Element'|| rowss[3][5] !=='Amount'|| rowss[3][6] !=='Period'|| rowss[3][7] !=='Command' ){
-            return  res.status(500).send({
-              status:false,
-              message: `Wrong excel format `,
-            });
-          }else{                
+          // if( rowss[3][1] !=='Staff ID'|| rowss[3][2] !=='Legacy Id' || rowss[3][3] !=='Full Name'|| rowss[3][4] !=='Element'|| rowss[3][5] !=='Amount'|| rowss[3][6] !=='Period'|| rowss[3][7] !=='Command' ){
+          //   return  res.status(500).send({
+          //     status:false,
+          //     message: `Wrong excel format `,
+          //   });
+          // }else{                
 
           // skip header
           rowss.shift();
@@ -157,10 +157,10 @@ router.post('/customers', async (req, res) => {
               ippis: row[1],
               legacyid: row[2],
               name: row[3], 
-              element: row[4],
+              element: 'KADUNA LAND LOAN',
               amount: row[5],
-              period: row[6],
-              command: row[7]
+              period: '2020-01-01 00:00:00.000 +00:00',
+              command: row[4]
 
 
             };
@@ -181,7 +181,7 @@ router.post('/customers', async (req, res) => {
               error: error.message,
             });
           });
-        }
+        //}
       });
     } catch (error) {
       console.log(error);
