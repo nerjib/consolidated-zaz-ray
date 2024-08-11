@@ -160,10 +160,9 @@ router.post('/customers', async (req, res) => {
               element: row[4],
               amount: row[5],
               period: row[6],
-              command: row[7],
-              createdAt: row[8],
-              ref: row[9],
-              updatedAt: row[10]
+              command: row[7]
+
+
             };
             payments.push(payment);
           });
@@ -222,8 +221,7 @@ router.post('/customers', async (req, res) => {
               location: row[3],
               block: row[4],
               plotno: row[5],
-              createdAt: row[6],
-              updatedAt: row[7]
+
             };           
           
               tutorials.push(tutorial);           
