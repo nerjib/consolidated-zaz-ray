@@ -161,7 +161,7 @@ router.post('/customers', async (req, res) => {
               name: row[3], 
               element: 'KADUNA LAND LOAN',
               amount: row[5],
-              period: '2020-04-01 00:00:00.000 +00:00',
+              period: '2020-06-01 00:00:00.000 +00:00',
               command: row[4]
 
 
