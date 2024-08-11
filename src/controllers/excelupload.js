@@ -136,7 +136,7 @@ router.post('/customers', async (req, res) => {
         let path = `${req.file.destination}/${req.file.originalname}`;
         const sheetNames= await readXlsxFile.readSheetNames(path)
           console.log({ lenghttrrr: sheetNames.length})
-            for (let i=2; i <5 ; i++ ){
+            for (let i=5; i <10 ; i++ ){
         readXlsxFile(path, {sheet: i}).then((rowss) => {
 
           console.log('rewshhh',rowss[3]);
