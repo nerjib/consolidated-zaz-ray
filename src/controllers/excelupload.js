@@ -134,9 +134,10 @@ router.post('/customers', async (req, res) => {
         }
       //  return console.log(JSON.stringify(req.file.originalname))
         let path = `${req.file.destination}/${req.file.originalname}`;
-        const snnnnjuqu= await readXlsxFile.readSheetNames(path)
-          console.log({ snnnnjuqu, le: snnnnjuqu.length})
-        readXlsxFile(path).then((rowss) => {
+        const sheetNames= await readXlsxFile.readSheetNames(path)
+          console.log({ sheetNames, le: sheetNames.length})
+          sheetNames.map((sheet) => {
+        readXlsxFile(path, {sheet}).then((rowss) => {
 
           console.log('rewshhh',rowss[3]);
           // if( rowss[3][1] !=='Staff ID'|| rowss[3][2] !=='Legacy Id' || rowss[3][3] !=='Full Name'|| rowss[3][4] !=='Element'|| rowss[3][5] !=='Amount'|| rowss[3][6] !=='Period'|| rowss[3][7] !=='Command' ){
@@ -185,6 +186,7 @@ router.post('/customers', async (req, res) => {
             });
           });
         //}
+        })
       });
     } catch (error) {
       console.log(error);
