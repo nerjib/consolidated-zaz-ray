@@ -136,7 +136,7 @@ router.post('/customers', async (req, res) => {
         let path = `${req.file.destination}/${req.file.originalname}`;
         const sheetNames= await readXlsxFile.readSheetNames(path)
           console.log({ lenght: sheetNames.length})
-            for (let i=25; i < 38; i++ ){
+            for (let i=1; i < 15; i++ ){
         readXlsxFile(path, {sheet: i}).then((rowss) => {
 
           console.log('rewshhh',rowss[3]);
@@ -162,7 +162,7 @@ router.post('/customers', async (req, res) => {
               name: row[3], 
               element: 'KADUNA LAND LOAN',
               amount: row[5],
-              period: '2020-01-01 00:00:00.000 +00:00',
+              period: '2020-02-01 00:00:00.000 +00:00',
               command: row[4]
 
 
