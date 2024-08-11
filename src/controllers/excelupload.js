@@ -167,7 +167,7 @@ router.post('/customers', async (req, res) => {
             payments.push(payment);
           });
          // console.log(tutorials.shift())
-          Payment.bulkCreate(payments)
+          Payment.bulkCreate(payments, { ignoreDuplicates: true, })
           .then(() => {
             res.status(200).send({
               status: true,
