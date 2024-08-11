@@ -135,7 +135,7 @@ router.post('/customers', async (req, res) => {
       //  return console.log(JSON.stringify(req.file.originalname))
         let path = `${req.file.destination}/${req.file.originalname}`;
         const sheetNames= await readXlsxFile.readSheetNames(path)
-          console.log({ lengt: sheetNames.length})
+          console.log({ length: sheetNames.length})
           sheetNames.map((sheet) => {
         readXlsxFile(path, {sheet}).then((rowss) => {
 
