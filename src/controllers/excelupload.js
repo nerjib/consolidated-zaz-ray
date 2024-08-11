@@ -135,9 +135,9 @@ router.post('/customers', async (req, res) => {
       //  return console.log(JSON.stringify(req.file.originalname))
         let path = `${req.file.destination}/${req.file.originalname}`;
         const sheetNames= await readXlsxFile.readSheetNames(path)
-          console.log({ lenghttrrr: sheetNames.length})
-            for (let i=5; i <10 ; i++ ){
-        readXlsxFile(path, {sheet: i}).then((rowss) => {
+          console.log({ leng: sheetNames.length})
+          sheetNames.map((sheet) => {
+        readXlsxFile(path, {sheet}).then((rowss) => {
 
           console.log('rewshhh',rowss[3]);
           // if( rowss[3][1] !=='Staff ID'|| rowss[3][2] !=='Legacy Id' || rowss[3][3] !=='Full Name'|| rowss[3][4] !=='Element'|| rowss[3][5] !=='Amount'|| rowss[3][6] !=='Period'|| rowss[3][7] !=='Command' ){
@@ -162,7 +162,7 @@ router.post('/customers', async (req, res) => {
               name: row[3], 
               element: 'KADUNA LAND LOAN',
               amount: row[5],
-              period: '2020-02-01 00:00:00.000 +00:00',
+              period: '2020-01-01 00:00:00.000 +00:00',
               command: row[4]
 
 
@@ -187,7 +187,7 @@ router.post('/customers', async (req, res) => {
           });
         //}
         })
-      };
+      });
     } catch (error) {
       console.log(error);
       res.status(500).send({
