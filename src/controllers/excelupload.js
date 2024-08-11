@@ -135,8 +135,8 @@ router.post('/customers', async (req, res) => {
       //  return console.log(JSON.stringify(req.file.originalname))
         let path = `${req.file.destination}/${req.file.originalname}`;
         const sheetNames= await readXlsxFile.readSheetNames(path)
-          console.log({ sheetNames, le: sheetNames.length})
-          sheetNames.map((sheet) => {
+          console.log({ leng: sheetNames.length})
+            for (let i=1; i < 15; i++ ){
         readXlsxFile(path, {sheet}).then((rowss) => {
 
           console.log('rewshhh',rowss[3]);
@@ -187,7 +187,7 @@ router.post('/customers', async (req, res) => {
           });
         //}
         })
-      });
+      };
     } catch (error) {
       console.log(error);
       res.status(500).send({
