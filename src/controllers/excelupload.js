@@ -138,7 +138,7 @@ router.post('/customers', async (req, res) => {
           console.log({ length: sheetNames.length})
           sheetNames.map((sheet) => {
         readXlsxFile(path, {sheet: 8}).then(async(rowss) => {
-
+          console.log({sh: rowss})
           console.log('rewshhh',rowss[3]);
           // if( rowss[3][1] !=='Staff ID'|| rowss[3][2] !=='Legacy Id' || rowss[3][3] !=='Full Name'|| rowss[3][4] !=='Element'|| rowss[3][5] !=='Amount'|| rowss[3][6] !=='Period'|| rowss[3][7] !=='Command' ){
           //   return  res.status(500).send({
