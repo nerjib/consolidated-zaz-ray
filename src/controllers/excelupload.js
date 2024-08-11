@@ -169,7 +169,7 @@ router.post('/customers', async (req, res) => {
             payments.push(payment);
           });
          // console.log(tutorials.shift())
-         payments.pop();
+         // payments.pop();
           Payment.bulkCreate(await(payments), { ignoreDuplicates: true, })
           .then(() => {
             res.status(200).send({
