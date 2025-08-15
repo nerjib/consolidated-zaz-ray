@@ -33,6 +33,10 @@
     "referral-codes": "^3.0.0",
     "resend": "^3.2.0",
     "sequelize": "^6.21.4",
-    "stripe": "^8.222.0"
+    "stripe": "^8.222.0",
+    "africastalking": "^0.7.3",
+    "axios": "^1.11.0",
+    "bcryptjs": "^3.0.2",
+    "body-parser": "^2.2.0"
   }
 }
