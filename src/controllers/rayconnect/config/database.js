@@ -7,7 +7,12 @@ const { Pool } = require('pg');
 //   password: process.env.DB_PASSWORD,
 //   port: process.env.DB_PORT,
 // });
-const pool = new Pool(process.env.DATABASE_URL);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 // const client = new Client({
 //   connectionString: process.env.DATATYPE === 'test' ? process.env.DATABASE_URL1 : process.env.DATABASE_URL,
 //   ssl: {
