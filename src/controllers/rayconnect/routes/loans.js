@@ -36,7 +36,7 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
     // Assign device
     const assignedDevice = await query(
       'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *;',
-      [customer_id, req.user.id, 'assigned', device_id]
+      [customer_id, agent_id, 'assigned', device_id]
     );
     console.log('lllllllll', assignedDevice.rows[0]);
     const total_amount = device_price - down_payment;
