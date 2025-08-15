@@ -24,7 +24,7 @@ const Commerce = require('./src/controllers/commerce')
 const Beauty = require('./src/controllers/beau.js')
 const BeuLogin = require('./src/controllers/auth/beuSignIn.js')
 const BeuSignUp = require('./src/controllers/auth/beuSignup.js')
-const RayRoutes = require('./src/rayconnect/rayroute')
+const RayRoutes = require('./src/controllers/rayconnect/rayroute.js')
 
 
 

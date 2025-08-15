@@ -1,0 +1,599 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+		"name": "PayGo Backend API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12345678"
+	},
+	"item": [
+		{
+			"name": "Authentication Endpoints",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"customer\",\n  \"phone_number\": \"+254712345678\",\n  \"state\": \"Nairobi\",\n  \"city\": \"Nairobi\",\n  \"address\": \"123 Main St\",\n  \"landmark\": \"Near City Mall\",\n  \"gps\": \"1.2921, 36.8219\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"existinguser\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Agent Endpoints",
+			"item": [
+				{
+					"name": "Get Current Agent's Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agents/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Device to Customer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"device_id\": \"d1e2f3a4-b5c6-7890-1234-567890abcdef\",\n  \"customer_id\": \"c1d2e3f4-a5b6-7890-1234-567890abcdef\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/agents/assign-device",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"agents",
+								"assign-device"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Customer Endpoints",
+			"item": [
+				{
+					"name": "Get Current Customer's Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/customers/me",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"customers",
+								"me"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin Endpoints",
+			"item": [
+				{
+					"name": "Create New Agent",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"new_agent\",\n  \"email\": \"new.agent@example.com\",\n  \"password\": \"agentpassword\",\n  \"phone_number\": \"+254700112233\",\n  \"state\": \"Kisumu\",\n  \"city\": \"Kisumu\",\n  \"address\": \"789 Lake St\",\n  \"landmark\": \"Near Lake Victoria\",\n  \"gps\": \"-0.1022, 34.7679\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/create-agent",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"create-agent"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Set Agent Commission Rate",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"commission_rate\": 7.5\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/set-agent-commission/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"admin",
+								"set-agent-commission",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "f1e2d3c4-b5a6-7890-1234-567890abcdef"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Device Endpoints",
+			"item": [
+				{
+					"name": "Add New Device",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"serial_number\": \"DEV-002\",\n  \"model\": \"Solar Lamp Pro\",\n  \"price\": 150.00\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/devices",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Device",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/devices/:id/approve",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"devices",
+								":id",
+								"approve"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "g1h2i3j4-k5l6-7890-1234-567890abcdef"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Devices",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/devices",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"devices"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payment Endpoints",
+			"item": [
+				{
+					"name": "Record Manual Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"c1d2e3f4-a5b6-7890-1234-567890abcdef\",\n  \"amount\": 50.00,\n  \"currency\": \"NGN\",\n  \"payment_method\": \"cash\",\n  \"transaction_id\": \"MANUAL-TXN-001\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/payments/manual",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"payments",
+								"manual"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Paystack Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reference\": \"PAYSTACK_TXN_REF_12345\",\n  \"user_id\": \"c1d2e3f4-a5b6-7890-1234-567890abcdef\",\n  \"amount\": 100.00\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/payments/paystack/verify",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"payments",
+								"paystack",
+								"verify"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Loan Endpoints",
+			"item": [
+				{
+					"name": "Create New Loan",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"c1d2e3f4-a5b6-7890-1234-567890abcdef\",\n  \"device_id\": \"d1e2f3a4-b5c6-7890-1234-567890abcdef\",\n  \"device_price\": 200.00,\n  \"term_months\": 12,\n  \"down_payment\": 20.00,\n  \"guarantor_details\": {\n    \"name\": \"Guarantor Name\",\n    \"phone\": \"+254712345678\",\n    \"relationship\": \"Sibling\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/loans",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"loans"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Loans",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/loans",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"loans"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Loan by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/loans/:id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"loans",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "l1o2a3n4-e5x6-7890-1234-567890abcdef"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Analytics Endpoints",
+			"item": [
+				{
+					"name": "Get Overall Platform Performance Analytics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/analytics/overview",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"analytics",
+								"overview"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Agent Performance Metrics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/analytics/agent-performance",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"analytics",
+								"agent-performance"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Inventory Endpoints",
+			"item": [
+				{
+					"name": "Get Devices Assigned by Specific Agent",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/inventory/agent/:agentId",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"inventory",
+								"agent",
+								":agentId"
+							],
+							"variable": [
+								{
+									"key": "agentId",
+									"value": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Devices by Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-auth-token",
+								"value": "{{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/inventory/status/:status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"inventory",
+								"status",
+								":status"
+							],
+							"variable": [
+								{
+									"key": "status",
+									"value": "available"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000/api",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "YOUR_JWT_TOKEN_HERE",
+			"type": "string"
+		}
+	]
+}
