@@ -5,7 +5,6 @@ const db = require('../db/index');
 const dotenv = require('dotenv');
 const upload = require('./multer')
 const cloudinary = require('./cloudinary')
-const stripe = ('')
 
   
 router.post("/create-account-hosted", async (req, res) => {
