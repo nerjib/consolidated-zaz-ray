@@ -9,7 +9,7 @@ const { query } = require('../config/database');
 // @desc    Create a new agent
 // @access  Private (Admin, Super-Agent)
 router.post('/create-agent', auth, authorize('admin', 'super-agent'), async (req, res) => {
-  const { username, email, password, phone_number, state, city, address, landmark, gps, name } = req.body;
+  const { username, role, email, password, phone_number, state, city, address, landmark, gps, name } = req.body;
 
   try {
     let user = await query('SELECT * FROM ray_users WHERE username = $1 OR email = $2', [username, email]);
@@ -24,7 +24,7 @@ router.post('/create-agent', auth, authorize('admin', 'super-agent'), async (req
 
     const newAgent = await query(
       'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, super_agent_id, name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, super_agent_id, name',
-      [username, email, hashedPassword, 'agent', phone_number, state, city, address, landmark, gps, superAgentId, name]
+      [username, email, hashedPassword, role, phone_number, state, city, address, landmark, gps, superAgentId, name]
     );
 
     res.json({ msg: 'Agent created successfully', agent: newAgent.rows[0] });
