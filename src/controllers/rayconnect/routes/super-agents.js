@@ -18,12 +18,12 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
         u.state AS region, 
         u.status,
         u.commission_rate AS "commissionRate",
-        (SELECT COUNT(*) FROM users WHERE super_agent_id = u.id) AS "agentsManaged",
-        (SELECT COALESCE(SUM(sac.amount), 0) FROM super_agent_commissions sac WHERE sac.super_agent_id = u.id) AS "totalCommissionsEarned",
+        (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = u.id) AS "agentsManaged",
+        (SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = u.id) AS "totalCommissionsEarned",
         u.commission_paid AS "commissionPaid",
-        ((SELECT COALESCE(SUM(sac.amount), 0) FROM super_agent_commissions sac WHERE sac.super_agent_id = u.id) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
+        ((SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = u.id) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
         u.last_active
-      FROM users u
+      FROM ray_users u
       WHERE u.role = 'super-agent'
     `);
     res.json(superAgents.rows);
@@ -46,9 +46,9 @@ router.get('/my-agents', auth, authorize('super-agent'), async (req, res) => {
         u.phone_number AS phone, 
         u.state AS region, 
         u.status,
-        (SELECT COUNT(*) FROM devices WHERE assigned_by = u.id) AS "devicesManaged",
-        (SELECT SUM(p.amount) FROM payments p JOIN loans l ON p.loan_id = l.id WHERE l.agent_id = u.id) AS "totalSales"
-      FROM users u
+        (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = u.id) AS "devicesManaged",
+        (SELECT SUM(p.amount) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id = u.id) AS "totalSales"
+      FROM ray_users u
       WHERE u.role = 'agent' AND u.super_agent_id = $1
     `, [req.user.id]);
     res.json(agents.rows);
@@ -67,10 +67,10 @@ router.get('/dashboard', auth, authorize('super-agent'), async (req, res) => {
 
     const dashboardData = await query(`
       SELECT
-        (SELECT COUNT(*) FROM users WHERE super_agent_id = $1) AS "agentsManaged",
-        (SELECT COUNT(DISTINCT l.customer_id) FROM loans l WHERE l.agent_id IN (SELECT id FROM users WHERE super_agent_id = $1)) AS "totalCustomers",
-        (SELECT COALESCE(SUM(p.amount), 0) FROM payments p JOIN loans l ON p.loan_id = l.id WHERE l.agent_id IN (SELECT id FROM users WHERE super_agent_id = $1)) AS "totalSalesVolume",
-        (SELECT COALESCE(SUM(sac.amount), 0) FROM super_agent_commissions sac WHERE sac.super_agent_id = $1) AS "totalCommissionsEarned"
+        (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = $1) AS "agentsManaged",
+        (SELECT COUNT(DISTINCT l.customer_id) FROM ray_loans l WHERE l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1)) AS "totalCustomers",
+        (SELECT COALESCE(SUM(p.amount), 0) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1)) AS "totalSalesVolume",
+        (SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = $1) AS "totalCommissionsEarned"
     `, [superAgentId]);
 
     res.json(dashboardData.rows[0]);
@@ -93,7 +93,7 @@ router.get('/mycustomers', auth, authorize('super-agent'), async (req, res) => {
         u.email, 
         u.phone_number AS phone, 
         u.state AS region, 
-        u.status FROM users u
+        u.status FROM ray_users u
         WHERE created_by = $1
     `, [superAgentId]);
     res.json(customers.rows);
@@ -117,10 +117,10 @@ router.get('/customers', auth, authorize('super-agent'), async (req, res) => {
         u.phone_number AS phone, 
         u.state AS region, 
         u.status,
-        (SELECT username FROM users WHERE id = u.super_agent_id) AS "onboardedBy"
-      FROM users u
+        (SELECT username FROM ray_users WHERE id = u.super_agent_id) AS "onboardedBy"
+      FROM ray_users u
       WHERE u.id IN (
-        SELECT l.customer_id FROM loans l WHERE l.agent_id IN (SELECT id FROM users WHERE super_agent_id = $1)
+        SELECT l.customer_id FROM ray_loans l WHERE l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1)
       )
     `, [superAgentId]);
     res.json(customers.rows);
@@ -144,8 +144,8 @@ router.get('/devices', auth, authorize('super-agent'), async (req, res) => {
         dt.device_name AS type,
         dt.device_model AS model,
         dt.amount
-      FROM devices d
-      JOIN device_types dt ON d.device_type_id = dt.id
+      FROM ray_devices d
+      JOIN ray_device_types dt ON d.device_type_id = dt.id
       WHERE d.super_agent_id = $1
     `, [superAgentId]);
     res.json(devices.rows);
@@ -164,20 +164,20 @@ router.post('/assign-device', auth, authorize('super-agent'), async (req, res) =
 
   try {
     // 1. Check if device exists, is available, and belongs to the super-agent
-    const deviceResult = await query('SELECT * FROM devices WHERE id = $1 AND status = $2 AND super_agent_id = $3', [device_id, 'available', superAgentId]);
+    const deviceResult = await query('SELECT * FROM ray_devices WHERE id = $1 AND status = $2 AND super_agent_id = $3', [device_id, 'available', superAgentId]);
     if (deviceResult.rows.length === 0) {
       return res.status(400).json({ msg: 'Device not found, is not available, or you do not have permission to assign it.' });
     }
 
     // 2. Check if the target agent exists and is managed by this super-agent
-    const agentResult = await query('SELECT * FROM users WHERE id = $1 AND role = $2 AND super_agent_id = $3', [agent_id, 'agent', superAgentId]);
+    const agentResult = await query('SELECT * FROM ray_users WHERE id = $1 AND role = $2 AND super_agent_id = $3', [agent_id, 'agent', superAgentId]);
     if (agentResult.rows.length === 0) {
       return res.status(400).json({ msg: 'Target agent not found or not managed by you.' });
     }
 
     // 3. Assign device to the agent
     const assignedDevice = await query(
-      'UPDATE devices SET assigned_by = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;',
+      'UPDATE ray_devices SET assigned_by = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;',
       [agent_id, device_id]
     );
 
@@ -212,24 +212,24 @@ router.get('/me', auth, async (req, res) => {
         u.commission_rate AS "commissionRate",
         COALESCE(SUM(sac.amount), 0) AS "totalCommissionsEarned",
         u.commission_paid AS "commissionPaid",
-        ((SELECT COALESCE(SUM(sac2.amount), 0) FROM super_agent_commissions sac2 WHERE sac2.super_agent_id = u.id) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
-        (SELECT COUNT(*) FROM users WHERE super_agent_id = u.id) AS "agentsManaged",
+        ((SELECT COALESCE(SUM(sac2.amount), 0) FROM ray_super_agent_commissions sac2 WHERE sac2.super_agent_id = u.id) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
+        (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = u.id) AS "agentsManaged",
         (SELECT json_agg(json_build_object(
           'id', a.id,
           'name', a.username,
           'email', a.email,
           'phone', a.phone_number,
           'status', a.status,
-          'devicesManaged', (SELECT COUNT(*) FROM devices WHERE assigned_by = a.id)
-        )) FROM users a WHERE a.super_agent_id = u.id) AS "managedAgents",
+          'devicesManaged', (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = a.id)
+        )) FROM ray_users a WHERE a.super_agent_id = u.id) AS "managedAgents",
         (SELECT json_agg(json_build_object(
           'id', w.id,
           'amount', w.amount,
           'date', w.withdrawal_date,
           'transactionId', w.transaction_id
-        ) ORDER BY w.withdrawal_date DESC) FROM super_agent_withdrawals w WHERE w.super_agent_id = u.id) AS "withdrawalHistory"
-      FROM users u
-      LEFT JOIN super_agent_commissions sac ON sac.super_agent_id = u.id
+        ) ORDER BY w.withdrawal_date DESC) FROM ray_super_agent_withdrawals w WHERE w.super_agent_id = u.id) AS "withdrawalHistory"
+      FROM ray_users u
+      LEFT JOIN ray_super_agent_commissions sac ON sac.super_agent_id = u.id
       WHERE u.id = $1 AND u.role = 'super-agent'
       GROUP BY u.id
       `,
@@ -273,12 +273,12 @@ router.get('/payments', auth, authorize('super-agent'), async (req, res) => {
         a.username AS agent_name,
         d.serial_number AS device_serial_number,
         dt.device_name AS device_type
-      FROM payments p
-      JOIN loans l ON p.loan_id = l.id
-      JOIN users u ON p.user_id = u.id
-      JOIN users a ON l.agent_id = a.id
-      JOIN devices d ON l.device_id = d.id
-      JOIN device_types dt ON d.device_type_id = dt.id
+      FROM ray_payments p
+      JOIN ray_loans l ON p.loan_id = l.id
+      JOIN ray_users u ON p.user_id = u.id
+      JOIN ray_users a ON l.agent_id = a.id
+      JOIN ray_devices d ON l.device_id = d.id
+      JOIN ray_device_types dt ON d.device_type_id = dt.id
       WHERE d.super_agent_id = $1
       ORDER BY p.payment_date DESC
     `, [superAgentId]);
@@ -314,24 +314,24 @@ router.get('/:id', auth, async (req, res) => {
         u.commission_rate AS "commissionRate",
         COALESCE(SUM(sac.amount), 0) AS "totalCommissionsEarned",
         u.commission_paid AS "commissionPaid",
-        ((SELECT COALESCE(SUM(sac2.amount), 0) FROM super_agent_commissions sac2 WHERE sac2.super_agent_id = u.id) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
-        (SELECT COUNT(*) FROM users WHERE super_agent_id = u.id) AS "agentsManaged",
+        ((SELECT COALESCE(SUM(sac2.amount), 0) FROM ray_super_agent_commissions sac2 WHERE sac2.super_agent_id = u.id) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
+        (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = u.id) AS "agentsManaged",
         (SELECT json_agg(json_build_object(
           'id', a.id,
           'name', a.username,
           'email', a.email,
           'phone', a.phone_number,
           'status', a.status,
-          'devicesManaged', (SELECT COUNT(*) FROM devices WHERE assigned_by = a.id)
-        )) FROM users a WHERE a.super_agent_id = u.id) AS "managedAgents",
+          'devicesManaged', (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = a.id)
+        )) FROM ray_users a WHERE a.super_agent_id = u.id) AS "managedAgents",
         (SELECT json_agg(json_build_object(
           'id', w.id,
           'amount', w.amount,
           'date', w.withdrawal_date,
           'transactionId', w.transaction_id
-        ) ORDER BY w.withdrawal_date DESC) FROM super_agent_withdrawals w WHERE w.super_agent_id = u.id) AS "withdrawalHistory"
-      FROM users u
-      LEFT JOIN super_agent_commissions sac ON sac.super_agent_id = u.id
+        ) ORDER BY w.withdrawal_date DESC) FROM ray_super_agent_withdrawals w WHERE w.super_agent_id = u.id) AS "withdrawalHistory"
+      FROM ray_users u
+      LEFT JOIN ray_super_agent_commissions sac ON sac.super_agent_id = u.id
       WHERE u.id = $1 AND u.role = 'super-agent'
       GROUP BY u.id
       `,
@@ -373,7 +373,7 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     const updatedSuperAgent = await query(
-      `UPDATE users SET
+      `UPDATE ray_users SET
         username = COALESCE($1, username),
         email = COALESCE($2, email),
         phone_number = COALESCE($3, phone_number),
@@ -415,8 +415,8 @@ router.post('/withdraw-commission', auth, authorize('super-agent', 'admin'), asy
         COALESCE(SUM(sac.amount), 0) AS total_earned,
         COALESCE(u.commission_paid, 0) AS total_paid,
         u.last_withdrawal_date
-      FROM users u
-      LEFT JOIN super_agent_commissions sac ON sac.super_agent_id = u.id
+      FROM ray_users u
+      LEFT JOIN ray_super_agent_commissions sac ON sac.super_agent_id = u.id
       WHERE u.id = $1
       GROUP BY u.commission_paid, u.last_withdrawal_date`,
       [superAgentId]
@@ -448,13 +448,13 @@ router.post('/withdraw-commission', auth, authorize('super-agent', 'admin'), asy
 
     // Record withdrawal
     const newWithdrawal = await query(
-      'INSERT INTO super_agent_withdrawals (super_agent_id, amount, transaction_id) VALUES ($1, $2, $3) RETURNING *;',
+      'INSERT INTO ray_super_agent_withdrawals (super_agent_id, amount, transaction_id) VALUES ($1, $2, $3) RETURNING *;',
       [superAgentId, amount, finalTransactionId]
     );
 
     // Update super agent's commission_paid and last_withdrawal_date
     const updatedSuperAgent = await query(
-      'UPDATE users SET commission_paid = commission_paid + $1, last_withdrawal_date = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;',
+      'UPDATE ray_users SET commission_paid = commission_paid + $1, last_withdrawal_date = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;',
       [amount, superAgentId]
     );
 
@@ -485,8 +485,8 @@ router.get('/messages', auth, authorize('super-agent'), async (req, res) => {
         m.created_at,
         m.parent_message_id
       FROM messages m
-      LEFT JOIN users s ON m.sender_id = s.id
-      LEFT JOIN users r ON m.receiver_id = r.id
+      LEFT JOIN ray_users s ON m.sender_id = s.id
+      LEFT JOIN ray_users r ON m.receiver_id = r.id
       WHERE m.receiver_id = $1 OR m.sender_id = $1
       ORDER BY m.created_at DESC
     `, [superAgentId]);
@@ -511,7 +511,7 @@ router.post('/messages', auth, authorize('super-agent'), async (req, res) => {
     }
 
     // Check if receiver exists
-    const receiver = await query('SELECT id FROM users WHERE id = $1', [receiver_id]);
+    const receiver = await query('SELECT id FROM ray_users WHERE id = $1', [receiver_id]);
     if (receiver.rows.length === 0) {
       return res.status(404).json({ msg: 'Receiver not found.' });
     }

@@ -17,13 +17,13 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
     }
 
     // Check if customer and device exist
-    const customer = await query(`SELECT id FROM users WHERE id = $1 AND role= $2`, [customer_id, 'customer']);
+    const customer = await query(`SELECT id FROM ray_users WHERE id = $1 AND role= $2`, [customer_id, 'customer']);
     // console.log(customer);
     if (customer.rows.length === 0) {
       return res.status(404).json({ msg: 'Customer not found' });
     }
 
-    const device = await query('SELECT id, status FROM devices WHERE id = $1', [device_id]);
+    const device = await query('SELECT id, status FROM ray_devices WHERE id = $1', [device_id]);
     if (device.rows.length === 0) {
       return res.status(404).json({ msg: 'Device not found' });
     }
@@ -35,7 +35,7 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
     console.log('>>>>>>>>>', req.user.id, '££££££', device_id, 'cid', customer_id);
     // Assign device
     const assignedDevice = await query(
-      'UPDATE devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *;',
+      'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *;',
       [customer_id, req.user.id, 'assigned', device_id]
     );
     console.log('lllllllll', assignedDevice.rows[0]);
@@ -61,7 +61,7 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
     const loanStatus = req.user.role === 'admin' ? 'active' : 'active'; // Determine status based on user role
 
     const newLoan = await query(
-      'INSERT INTO loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *;',
+      'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *;',
       [customer_id, device_id, total_amount, down_payment, total_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, agent_id ?? req.user.id, loanStatus, payment_frequency, payment_cycle_amount]
     );
 
@@ -70,7 +70,7 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
     // Update device status and assign to customer/agent
     await query(
       `
-      UPDATE devices 
+      UPDATE ray_devices 
       SET status = 'assigned', customer_id = $1, install_date = $2, assigned_by = $3
       WHERE id = $4
     `,
@@ -96,8 +96,8 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
         l.status,
         l.next_payment_date AS next_payment,
         l.payment_cycle_amount
-      FROM loans l
-      JOIN users u ON l.customer_id = u.id
+      FROM ray_loans l
+      JOIN ray_users u ON l.customer_id = u.id
       ORDER BY l.id ASC
     `);
     res.json(loans.rows);
@@ -161,12 +161,12 @@ router.get('/:id', auth, async (req, res) => {
           'reference', p.transaction_id,
           'status', p.status,
           'lateFee', 0 -- Placeholder for now
-        ) ORDER BY p.payment_date DESC) FROM payments p WHERE p.loan_id = l.id) AS "paymentHistory"
-      FROM loans l
-      JOIN users c ON l.customer_id = c.id
-      JOIN devices d ON l.device_id = d.id
-      JOIN device_types dt ON d.device_type_id = dt.id
-      LEFT JOIN users a ON l.agent_id = a.id
+        ) ORDER BY p.payment_date DESC) FROM ray_payments p WHERE p.loan_id = l.id) AS "paymentHistory"
+      FROM ray_loans l
+      JOIN ray_users c ON l.customer_id = c.id
+      JOIN ray_devices d ON l.device_id = d.id
+      JOIN ray_device_types dt ON d.device_type_id = dt.id
+      LEFT JOIN ray_users a ON l.agent_id = a.id
       WHERE l.id = $1
     `, [id]);
 
@@ -209,9 +209,9 @@ router.get('/customer/:customerId', auth, async (req, res) => {
         dt.device_name AS "deviceType",
         d.serial_number AS "deviceId",
         (l.amount_paid / l.total_amount) * 100 AS progress
-      FROM loans l
-      JOIN devices d ON l.device_id = d.id
-      JOIN device_types dt ON d.device_type_id = dt.id
+      FROM ray_loans l
+      JOIN ray_devices d ON l.device_id = d.id
+      JOIN ray_device_types dt ON d.device_type_id = dt.id
       WHERE l.customer_id = $1
       ORDER BY l.next_payment_date ASC
     `, [customerId]);
@@ -231,7 +231,7 @@ router.put('/:id', auth, authorize('admin', 'agent'), async (req, res) => {
   let { total_amount, term_months, status, next_payment_date, guarantor_details } = req.body;
 
   try {
-    const loanResult = await query('SELECT total_amount, term_months FROM loans WHERE id = $1', [id]);
+    const loanResult = await query('SELECT total_amount, term_months FROM ray_loans WHERE id = $1', [id]);
     if (loanResult.rows.length === 0) {
       return res.status(404).json({ msg: 'Loan not found' });
     }
@@ -257,7 +257,7 @@ router.put('/:id', auth, authorize('admin', 'agent'), async (req, res) => {
     }
 
     const updatedLoan = await query(
-      `UPDATE loans SET
+      `UPDATE ray_loans SET
         total_amount = COALESCE($1, total_amount),
         term_months = COALESCE($2, term_months),
         payment_amount_per_cycle = $3,
@@ -283,7 +283,7 @@ router.put('/:id/approve', auth, authorize('admin'), async (req, res) => {
   const { id } = req.params;
 
   try {
-    const loan = await query('SELECT id, status FROM loans WHERE id = $1', [id]);
+    const loan = await query('SELECT id, status FROM ray_loans WHERE id = $1', [id]);
 
     if (loan.rows.length === 0) {
       return res.status(404).json({ msg: 'Loan not found' });
@@ -294,7 +294,7 @@ router.put('/:id/approve', auth, authorize('admin'), async (req, res) => {
     }
 
     const approvedLoan = await query(
-      'UPDATE loans SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;',
+      'UPDATE ray_loans SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;',
       ['active', id]
     );
 

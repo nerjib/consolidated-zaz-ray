@@ -6,11 +6,11 @@ const { query } = require('../config/database');
 
 // Register User
 router.post('/register', async (req, res) => {
-  const { username, email, password, role, phone_number, state, city, address, landmark, gps } = req.body;
+  const { username, email, password, role, phone_number, state, city, address, landmark, gps, name } = req.body;
 
   try {
     // Check if user already exists
-    let user = await query('SELECT * FROM users WHERE username = $1 OR email = $2', [username, email]);
+    let user = await query('SELECT * FROM ray_users WHERE username = $1 OR email = $2', [username, email]);
     if (user.rows.length > 0) {
       return res.status(400).json({ msg: 'User already exists' });
     }
@@ -21,8 +21,8 @@ router.post('/register', async (req, res) => {
 
     // Save user to database
     const newUser = await query(
-      'INSERT INTO users (username, email, password, role, phone_number, state, city, address, landmark, gps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps',
-      [username, email, hashedPassword, role, phone_number, state, city, address, landmark, gps]
+      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, name',
+      [username, email, hashedPassword, role, phone_number, state, city, address, landmark, gps, name]
     );
 
     // Generate JWT
@@ -36,7 +36,7 @@ router.post('/register', async (req, res) => {
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
-      { expiresIn: '1h' },
+      { expiresIn: '48h' },
       (err, token) => {
         if (err) throw err;
         res.json({ token });
@@ -54,7 +54,7 @@ router.post('/login', async (req, res) => {
 console.log({username})
   try {
     // Check if user exists
-    let user = await query('SELECT * FROM users WHERE username = $1', [username]);
+    let user = await query('SELECT * FROM ray_users WHERE username = $1', [username]);
     if (user.rows.length === 0) {
       return res.status(400).json({ msg: 'Invalid Credentials' });
     }
@@ -72,7 +72,7 @@ console.log({username})
         role: user.rows[0].role,
       },
     };
-    await  query('UPDATE users SET last_active = CURRENT_TIMESTAMP WHERE id = $1', [user.rows[0].id]);
+    await  query('UPDATE ray_users SET last_active = CURRENT_TIMESTAMP WHERE id = $1', [user.rows[0].id]);
     jwt.sign(
       payload,
       process.env.JWT_SECRET,

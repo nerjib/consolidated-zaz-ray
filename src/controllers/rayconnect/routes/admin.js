@@ -12,7 +12,7 @@ router.post('/create-agent', auth, authorize('admin', 'super-agent'), async (req
   const { username, email, password, phone_number, state, city, address, landmark, gps, name } = req.body;
 
   try {
-    let user = await query('SELECT * FROM users WHERE username = $1 OR email = $2', [username, email]);
+    let user = await query('SELECT * FROM ray_users WHERE username = $1 OR email = $2', [username, email]);
     if (user.rows.length > 0) {
       return res.status(400).json({ msg: 'User already exists' });
     }
@@ -23,7 +23,7 @@ router.post('/create-agent', auth, authorize('admin', 'super-agent'), async (req
     const superAgentId = req.user.role === 'super-agent' ? req.user.id : null;
 
     const newAgent = await query(
-      'INSERT INTO users (username, email, password, role, phone_number, state, city, address, landmark, gps, super_agent_id, name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, super_agent_id, name',
+      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, super_agent_id, name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, super_agent_id, name',
       [username, email, hashedPassword, 'agent', phone_number, state, city, address, landmark, gps, superAgentId, name]
     );
 
@@ -41,7 +41,7 @@ router.post('/create-super-agent', auth, authorize('admin'), async (req, res) =>
   const { username, email, password, phone_number, state, city, address, landmark, gps } = req.body;
 
   try {
-    let user = await query('SELECT * FROM users WHERE username = $1 OR email = $2', [username, email]);
+    let user = await query('SELECT * FROM ray_users WHERE username = $1 OR email = $2', [username, email]);
     if (user.rows.length > 0) {
       return res.status(400).json({ msg: 'User already exists' });
     }
@@ -50,7 +50,7 @@ router.post('/create-super-agent', auth, authorize('admin'), async (req, res) =>
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newSuperAgent = await query(
-      'INSERT INTO users (username, email, password, role, phone_number, state, city, address, landmark, gps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps',
+      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps',
       [username, email, hashedPassword, 'super-agent', phone_number, state, city, address, landmark, gps]
     );
 
@@ -75,13 +75,13 @@ router.put('/set-agent-commission/:id', auth, authorize('admin'), async (req, re
     }
 
     // Check if user exists and is an agent
-    const agent = await query("SELECT id, role FROM users WHERE id = $1 AND role = 'agent'", [id]);
+    const agent = await query("SELECT id, role FROM ray_users WHERE id = $1 AND role = 'agent'", [id]);
     if (agent.rows.length === 0) {
       return res.status(404).json({ msg: 'Agent not found' });
     }
 
     const updatedAgent = await query(
-      'UPDATE users SET commission_rate = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, username, email, role, commission_rate;',
+      'UPDATE ray_users SET commission_rate = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, username, email, role, commission_rate;',
       [commission_rate, id]
     );
 
@@ -101,13 +101,13 @@ router.put('/super-agent/:id', auth, authorize('admin'), async (req, res) => {
 
   try {
     // Check if user exists and is a super-agent
-    const userCheck = await query("SELECT * FROM users WHERE id = $1 AND role = 'super-agent'", [id]);
+    const userCheck = await query("SELECT * FROM ray_users WHERE id = $1 AND role = 'super-agent'", [id]);
     if (userCheck.rows.length === 0) {
         return res.status(404).json({ msg: 'Super-agent not found' });
     }
 
     const updatedSuperAgent = await query(
-      `UPDATE users SET
+      `UPDATE ray_users SET
         username = COALESCE($1, username),
         email = COALESCE($2, email),
         phone_number = COALESCE($3, phone_number),
@@ -141,7 +141,7 @@ router.put('/super-agent/:id', auth, authorize('admin'), async (req, res) => {
 // @access  Private (Admin only)
 router.get('/settings/commission', auth, authorize('admin'), async (req, res) => {
   try {
-    const rates = await query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('general_agent_commission_rate', 'general_super_agent_commission_rate')");
+    const rates = await query("SELECT setting_key, setting_value FROM ray_settings WHERE setting_key IN ('general_agent_commission_rate', 'general_super_agent_commission_rate')");
     const commissionRates = rates.rows.reduce((acc, rate) => {
       acc[rate.setting_key] = parseFloat(rate.setting_value);
       return acc;
@@ -161,10 +161,10 @@ router.put('/settings/commission', auth, authorize('admin'), async (req, res) =>
 
   try {
     if (agent_rate !== undefined) {
-      await query("UPDATE settings SET setting_value = $1 WHERE setting_key = 'general_agent_commission_rate'", [agent_rate]);
+      await query("UPDATE ray_settings SET setting_value = $1 WHERE setting_key = 'general_agent_commission_rate'", [agent_rate]);
     }
     if (super_agent_rate !== undefined) {
-      await query("UPDATE settings SET setting_value = $1 WHERE setting_key = 'general_super_agent_commission_rate'", [super_agent_rate]);
+      await query("UPDATE ray_settings SET setting_value = $1 WHERE setting_key = 'general_super_agent_commission_rate'", [super_agent_rate]);
     }
     res.json({ msg: 'General commission rates updated successfully' });
   } catch (err) {
@@ -186,22 +186,22 @@ router.put('/assign-device-to-super-agent', auth, authorize('admin'), async (req
     }
 
     // Check if super-agent exists and has the role 'super-agent'
-    const superAgent = await query(`SELECT id FROM users WHERE id = $1 AND role = 'super-agent'`, [superAgentId]);
+    const superAgent = await query(`SELECT id FROM ray_users WHERE id = $1 AND role = 'super-agent'`, [superAgentId]);
     if (superAgent.rows.length === 0) {
       return res.status(404).json({ msg: 'Super-agent not found or is not a super-agent.' });
     }
 
-    // Assign devices to super-agent
+    // Assign ray_devices to super-agent
     const updatedDevices = await query(
-      'UPDATE devices SET super_agent_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2::uuid[]) RETURNING *;',
+      'UPDATE ray_devices SET super_agent_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2::uuid[]) RETURNING *;',
       [superAgentId, deviceIds]
     );
 
     if (updatedDevices.rows.length === 0) {
-      return res.status(404).json({ msg: 'No devices found or updated.' });
+      return res.status(404).json({ msg: 'No ray_devices found or updated.' });
     }
 
-    res.json({ msg: 'Devices assigned successfully', devices: updatedDevices.rows });
+    res.json({ msg: 'Devices assigned successfully', ray_devices: updatedDevices.rows });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

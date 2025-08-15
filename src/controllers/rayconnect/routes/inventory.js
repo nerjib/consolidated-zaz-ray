@@ -10,7 +10,7 @@ const { query } = require('../config/database');
 router.get('/agent/:agentId', auth, authorize('admin'), async (req, res) => {
   const { agentId } = req.params;
   try {
-    const devices = await query('SELECT * FROM devices WHERE assigned_by = $1', [agentId]);
+    const devices = await query('SELECT * FROM ray_devices WHERE assigned_by = $1', [agentId]);
     res.json(devices.rows);
   } catch (err) {
     console.error(err.message);
@@ -24,7 +24,7 @@ router.get('/agent/:agentId', auth, authorize('admin'), async (req, res) => {
 router.get('/status/:status', auth, authorize('admin'), async (req, res) => {
   const { status } = req.params;
   try {
-    const devices = await query('SELECT * FROM devices WHERE status = $1', [status]);
+    const devices = await query('SELECT * FROM ray_devices WHERE status = $1', [status]);
     res.json(devices.rows);
   } catch (err) {
     console.error(err.message);

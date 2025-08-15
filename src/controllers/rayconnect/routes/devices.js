@@ -12,20 +12,20 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 
   try {
     // Check if device type exists and get its details
-    const deviceType = await query('SELECT device_name, manufacturer, device_model, amount FROM device_types WHERE id = $1', [device_type_id]);
+    const deviceType = await query('SELECT device_name, manufacturer, device_model, amount FROM ray_device_types WHERE id = $1', [device_type_id]);
     if (deviceType.rows.length === 0) {
       return res.status(400).json({ msg: 'Invalid device type ID' });
     }
 
     const { device_name, manufacturer, device_model, amount } = deviceType.rows[0];
 
-    let device = await query('SELECT * FROM devices WHERE serial_number = $1', [serial_number]);
+    let device = await query('SELECT * FROM ray_devices WHERE serial_number = $1', [serial_number]);
     if (device.rows.length > 0) {
       return res.status(400).json({ msg: 'Device with this serial number already exists' });
     }
 
     const newDevice = await query(
-      'INSERT INTO devices (serial_number, model, price, device_type_id, status) VALUES ($1, $2, $3, $4, $5) RETURNING *;',
+      'INSERT INTO ray_devices (serial_number, model, price, device_type_id, status) VALUES ($1, $2, $3, $4, $5) RETURNING *;',
       [serial_number, device_model, amount, device_type_id, 'available']
     );
     res.json({ msg: 'Device added successfully', device: newDevice.rows[0] });
@@ -42,7 +42,7 @@ router.put('/:id/approve', auth, authorize('admin'), async (req, res) => {
   const { id } = req.params;
 
   try {
-    const device = await query('UPDATE devices SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;',
+    const device = await query('UPDATE ray_devices SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;',
       ['available', id]
     );
 
@@ -61,7 +61,7 @@ router.put('/:id/approve', auth, authorize('admin'), async (req, res) => {
 // @access  Private (Admin, Agent)
 router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
   try {
-    const devices = await query(`
+    const ray_devices = await query(`
       SELECT
         d.id,
         d.serial_number AS "serialNumber",
@@ -76,13 +76,13 @@ router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
         ag.username AS "assignedByAgentName",
         d.super_agent_id AS "superAgentId",
         sa.username AS "superAgentName"
-      FROM devices d
-      JOIN device_types dt ON d.device_type_id = dt.id
-      LEFT JOIN users cu ON d.assigned_to = cu.id
-      LEFT JOIN users ag ON d.assigned_by = ag.id
-      LEFT JOIN users sa ON d.super_agent_id = sa.id
+      FROM ray_devices d
+      JOIN ray_device_types dt ON d.device_type_id = dt.id
+      LEFT JOIN ray_users cu ON d.assigned_to = cu.id
+      LEFT JOIN ray_users ag ON d.assigned_by = ag.id
+      LEFT JOIN ray_users sa ON d.super_agent_id = sa.id
     `);
-    res.json(devices.rows);
+    res.json(ray_devices.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

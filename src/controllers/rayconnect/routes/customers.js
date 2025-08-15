@@ -22,15 +22,15 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
         u.created_at AS "joinDate",
         u.status,
         u.credit_score AS "creditScore",
-        (SELECT COUNT(*) FROM loans WHERE customer_id = u.id) AS "totalLoans",
-        (SELECT COUNT(*) FROM loans WHERE customer_id = u.id AND status = 'active') AS "activeLoans",
-        (SELECT SUM(total_amount) FROM loans WHERE customer_id = u.id) AS "totalBorrowed",
-        (SELECT SUM(amount_paid) FROM loans WHERE customer_id = u.id) AS "totalPaid",
-        (SELECT SUM(balance) FROM loans WHERE customer_id = u.id) AS "outstandingBalance",
-        (SELECT COUNT(*) FROM devices WHERE assigned_to = u.id) AS devices,
-        (SELECT MAX(payment_date) FROM payments WHERE user_id = u.id) AS "lastPayment",
-        (SELECT MIN(next_payment_date) FROM loans WHERE customer_id = u.id AND status = 'active') AS "nextPaymentDue"
-      FROM users u
+        (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id) AS "totalLoans",
+        (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id AND status = 'active') AS "activeLoans",
+        (SELECT SUM(total_amount) FROM ray_loans WHERE customer_id = u.id) AS "totalBorrowed",
+        (SELECT SUM(amount_paid) FROM ray_loans WHERE customer_id = u.id) AS "totalPaid",
+        (SELECT SUM(balance) FROM ray_loans WHERE customer_id = u.id) AS "outstandingBalance",
+        (SELECT COUNT(*) FROM ray_devices WHERE assigned_to = u.id) AS devices,
+        (SELECT MAX(payment_date) FROM ray_payments WHERE user_id = u.id) AS "lastPayment",
+        (SELECT MIN(next_payment_date) FROM ray_loans WHERE customer_id = u.id AND status = 'active') AS "nextPaymentDue"
+      FROM ray_users u
       WHERE u.role = 'customer'
     `);
     res.json(customers.rows);
@@ -57,15 +57,15 @@ router.get('/me', auth, authorize('customer', 'admin'), async (req, res) => {
         u.created_at AS "joinDate",
         u.status,
         u.credit_score AS "creditScore",
-        (SELECT COUNT(*) FROM loans WHERE customer_id = u.id) AS "totalLoans",
-        (SELECT COUNT(*) FROM loans WHERE customer_id = u.id AND status = 'active') AS "activeLoans",
-        (SELECT COUNT(*) FROM loans WHERE customer_id = u.id AND status = 'completed') AS "completedLoans",
-        (SELECT SUM(total_amount) FROM loans WHERE customer_id = u.id) AS "totalBorrowed",
-        (SELECT SUM(amount_paid) FROM loans WHERE customer_id = u.id) AS "totalPaid",
-        (SELECT SUM(balance) FROM loans WHERE customer_id = u.id) AS "outstandingBalance",
-        (SELECT COUNT(*) FROM devices WHERE assigned_to = u.id) AS devices,
-        (SELECT MAX(payment_date) FROM payments WHERE user_id = u.id) AS "lastPayment",
-        (SELECT MIN(next_payment_date) FROM loans WHERE customer_id = u.id AND status = 'active') AS "nextPaymentDue",
+        (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id) AS "totalLoans",
+        (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id AND status = 'active') AS "activeLoans",
+        (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id AND status = 'completed') AS "completedLoans",
+        (SELECT SUM(total_amount) FROM ray_loans WHERE customer_id = u.id) AS "totalBorrowed",
+        (SELECT SUM(amount_paid) FROM ray_loans WHERE customer_id = u.id) AS "totalPaid",
+        (SELECT SUM(balance) FROM ray_loans WHERE customer_id = u.id) AS "outstandingBalance",
+        (SELECT COUNT(*) FROM ray_devices WHERE assigned_to = u.id) AS devices,
+        (SELECT MAX(payment_date) FROM ray_payments WHERE user_id = u.id) AS "lastPayment",
+        (SELECT MIN(next_payment_date) FROM ray_loans WHERE customer_id = u.id AND status = 'active') AS "nextPaymentDue",
         (SELECT json_agg(json_build_object(
           'id', l.id,
           'deviceType', dt.device_name,
@@ -80,7 +80,7 @@ router.get('/me', auth, authorize('customer', 'admin'), async (req, res) => {
           'status', l.status,
           'nextPaymentDate', l.next_payment_date,
           'progress', (l.amount_paid / l.total_amount) * 100
-        )) FROM loans l JOIN devices d ON l.device_id = d.id JOIN device_types dt ON d.device_type_id = dt.id WHERE l.customer_id = u.id) AS loans,
+        )) FROM ray_loans l JOIN ray_devices d ON l.device_id = d.id JOIN ray_device_types dt ON d.device_type_id = dt.id WHERE l.customer_id = u.id) AS loans,
         (SELECT json_agg(json_build_object(
           'id', d.id,
           'serialNumber', d.serial_number,
@@ -88,9 +88,9 @@ router.get('/me', auth, authorize('customer', 'admin'), async (req, res) => {
           'model', dt.device_model,
           'status', d.status,
           'installDate', d.created_at,
-          'batteryLevel', 0, -- Placeholder, as devices table does not have this
+          'batteryLevel', 0, -- Placeholder, as ray_devices table does not have this
           'lastSync', d.updated_at -- Using updated_at as last sync for now
-        )) FROM devices d JOIN device_types dt ON d.device_type_id = dt.id WHERE d.assigned_to = u.id) AS devices,
+        )) FROM ray_devices d JOIN ray_device_types dt ON d.device_type_id = dt.id WHERE d.assigned_to = u.id) AS devices,
         (SELECT json_agg(json_build_object(
           'id', p.id,
           'date', p.payment_date,
@@ -99,15 +99,15 @@ router.get('/me', auth, authorize('customer', 'admin'), async (req, res) => {
           'reference', p.transaction_id,
           'status', p.status,
           'loanId', p.loan_id
-        )) FROM payments p WHERE p.user_id = u.id) AS "paymentHistory",
+        )) FROM ray_payments p WHERE p.user_id = u.id) AS "paymentHistory",
         (SELECT json_agg(json_build_object(
           'id', a.id,
-          'type', 'payment', -- Assuming all activities are payments for now
+          'type', 'payment', -- Assuming all activities are ray_payments for now
           'message', 'Payment received: NGN ' || a.amount,
           'timestamp', a.payment_date,
           'status', 'success' -- Assuming all payments are successful for now
-        ) ORDER BY a.payment_date DESC) FROM (SELECT * FROM payments WHERE user_id = u.id ORDER BY payment_date DESC LIMIT 5) a) AS "recentActivities"
-      FROM users u
+        ) ORDER BY a.payment_date DESC) FROM (SELECT * FROM ray_payments WHERE user_id = u.id ORDER BY payment_date DESC LIMIT 5) a) AS "recentActivities"
+      FROM ray_users u
       WHERE u.id = $1 AND u.role = 'customer'
     `, [req.user.id]);
 
@@ -139,15 +139,15 @@ router.get('/:id', auth, async (req, res) => {
         u.created_at AS "joinDate",
         u.status,
         u.credit_score AS "creditScore",
-        (SELECT COUNT(*) FROM loans WHERE customer_id = u.id) AS "totalLoans",
-        (SELECT COUNT(*) FROM loans WHERE customer_id = u.id AND status = 'active') AS "activeLoans",
-        (SELECT COUNT(*) FROM loans WHERE customer_id = u.id AND status = 'completed') AS "completedLoans",
-        (SELECT SUM(total_amount) FROM loans WHERE customer_id = u.id) AS "totalBorrowed",
-        (SELECT SUM(amount_paid) FROM loans WHERE customer_id = u.id) AS "totalPaid",
-        (SELECT SUM(balance) FROM loans WHERE customer_id = u.id) AS "outstandingBalance",
-        (SELECT COUNT(*) FROM devices WHERE assigned_to = u.id) AS devices,
-        (SELECT MAX(payment_date) FROM payments WHERE user_id = u.id) AS "lastPayment",
-        (SELECT MIN(next_payment_date) FROM loans WHERE customer_id = u.id AND status = 'active') AS "nextPaymentDue",
+        (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id) AS "totalLoans",
+        (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id AND status = 'active') AS "activeLoans",
+        (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id AND status = 'completed') AS "completedLoans",
+        (SELECT SUM(total_amount) FROM ray_loans WHERE customer_id = u.id) AS "totalBorrowed",
+        (SELECT SUM(amount_paid) FROM ray_loans WHERE customer_id = u.id) AS "totalPaid",
+        (SELECT SUM(balance) FROM ray_loans WHERE customer_id = u.id) AS "outstandingBalance",
+        (SELECT COUNT(*) FROM ray_devices WHERE assigned_to = u.id) AS devices,
+        (SELECT MAX(payment_date) FROM ray_payments WHERE user_id = u.id) AS "lastPayment",
+        (SELECT MIN(next_payment_date) FROM ray_loans WHERE customer_id = u.id AND status = 'active') AS "nextPaymentDue",
         (SELECT json_agg(json_build_object(
           'id', l.id,
           'deviceType', dt.device_name,
@@ -162,7 +162,7 @@ router.get('/:id', auth, async (req, res) => {
           'status', l.status,
           'nextPaymentDate', l.next_payment_date,
           'progress', (l.amount_paid / l.total_amount) * 100
-        )) FROM loans l JOIN devices d ON l.device_id = d.id JOIN device_types dt ON d.device_type_id = dt.id WHERE l.customer_id = u.id) AS loans,
+        )) FROM ray_loans l JOIN ray_devices d ON l.device_id = d.id JOIN ray_device_types dt ON d.device_type_id = dt.id WHERE l.customer_id = u.id) AS loans,
         (SELECT json_agg(json_build_object(
           'id', d.id,
           'serialNumber', d.serial_number,
@@ -170,9 +170,9 @@ router.get('/:id', auth, async (req, res) => {
           'model', dt.device_model,
           'status', d.status,
           'installDate', d.created_at,
-          'batteryLevel', 0, -- Placeholder, as devices table does not have this
+          'batteryLevel', 0, -- Placeholder, as ray_devices table does not have this
           'lastSync', d.updated_at -- Using updated_at as last sync for now
-        )) FROM devices d JOIN device_types dt ON d.device_type_id = dt.id WHERE d.assigned_to = u.id) AS devices,
+        )) FROM ray_devices d JOIN ray_device_types dt ON d.device_type_id = dt.id WHERE d.assigned_to = u.id) AS devices,
         (SELECT json_agg(json_build_object(
           'id', p.id,
           'date', p.payment_date,
@@ -181,15 +181,15 @@ router.get('/:id', auth, async (req, res) => {
           'reference', p.transaction_id,
           'status', p.status,
           'loanId', p.loan_id
-        )) FROM payments p WHERE p.user_id = u.id) AS "paymentHistory",
+        )) FROM ray_payments p WHERE p.user_id = u.id) AS "paymentHistory",
         (SELECT json_agg(json_build_object(
           'id', a.id,
           'type', 'payment', -- Assuming all activities are payments for now
           'message', 'Payment received: NGN ' || a.amount,
           'timestamp', a.payment_date,
           'status', 'success' -- Assuming all payments are successful for now
-        ) ORDER BY a.payment_date DESC) FROM (SELECT * FROM payments WHERE user_id = u.id ORDER BY payment_date DESC LIMIT 5) a) AS "recentActivities"
-      FROM users u
+        ) ORDER BY a.payment_date DESC) FROM (SELECT * FROM ray_payments WHERE user_id = u.id ORDER BY payment_date DESC LIMIT 5) a) AS "recentActivities"
+      FROM ray_users u
       WHERE u.id = $1 AND u.role = 'customer'
     `, [id]);
 
@@ -223,7 +223,7 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     const updatedCustomer = await query(
-      `UPDATE users SET
+      `UPDATE ray_users SET
         username = COALESCE($1, username),
         email = COALESCE($2, email),
         phone_number = COALESCE($3, phone_number),

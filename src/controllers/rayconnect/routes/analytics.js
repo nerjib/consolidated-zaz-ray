@@ -9,14 +9,14 @@ const { query } = require('../config/database');
 // @access  Private (Admin)
 router.get('/overview', auth, authorize('admin'), async (req, res) => {
   try {
-    const totalPayments = await query('SELECT SUM(amount) FROM payments WHERE status = $1',['completed']);
-    const totalLoans = await query('SELECT COUNT(*) FROM loans');
-    const activeLoans = await query('SELECT COUNT(*) FROM loans WHERE status = $1', ['active']);
-    const totalCustomers = await query('SELECT COUNT(*) FROM users WHERE role = $1', ['customer']);
-    const totalAgents = await query('SELECT COUNT(*) FROM users WHERE role = $1', ['agent']);
-    const totalDevices = await query('SELECT COUNT(*) FROM devices');
-    const assignedDevices = await query('SELECT COUNT(*) FROM devices WHERE status = $1', ['assigned']);
-    const availableDevices = await query('SELECT COUNT(*) FROM devices WHERE status = $1', ['available']);
+    const totalPayments = await query('SELECT SUM(amount) FROM ray_payments WHERE status = $1',['completed']);
+    const totalLoans = await query('SELECT COUNT(*) FROM ray_loans');
+    const activeLoans = await query('SELECT COUNT(*) FROM ray_loans WHERE status = $1', ['active']);
+    const totalCustomers = await query('SELECT COUNT(*) FROM ray_users WHERE role = $1', ['customer']);
+    const totalAgents = await query('SELECT COUNT(*) FROM ray_users WHERE role = $1', ['agent']);
+    const totalDevices = await query('SELECT COUNT(*) FROM ray_devices');
+    const assignedDevices = await query('SELECT COUNT(*) FROM ray_devices WHERE status = $1', ['assigned']);
+    const availableDevices = await query('SELECT COUNT(*) FROM ray_devices WHERE status = $1', ['available']);
 
     res.json({
       totalPayments: parseFloat(totalPayments.rows[0].sum || 0),
@@ -39,12 +39,12 @@ router.get('/overview', auth, authorize('admin'), async (req, res) => {
 // @access  Private (Admin)
 router.get('/agent-performance', auth, authorize('admin'), async (req, res) => {
   try {
-    const agents = await query('SELECT id, username, email, commission_rate FROM users WHERE role = agent');
+    const agents = await query('SELECT id, username, email, commission_rate FROM ray_users WHERE role = agent');
 
     const agentPerformance = await Promise.all(agents.rows.map(async (agent) => {
-      const totalCommissions = await query('SELECT SUM(amount) FROM commissions WHERE agent_id = $1', [agent.id]);
-      const assignedDevicesCount = await query('SELECT COUNT(*) FROM devices WHERE assigned_by = $1', [agent.id]);
-      const customersCount = await query('SELECT COUNT(DISTINCT customer_id) FROM commissions WHERE agent_id = $1', [agent.id]);
+      const totalCommissions = await query('SELECT SUM(amount) FROM ray_commissions WHERE agent_id = $1', [agent.id]);
+      const assignedDevicesCount = await query('SELECT COUNT(*) FROM ray_devices WHERE assigned_by = $1', [agent.id]);
+      const customersCount = await query('SELECT COUNT(DISTINCT customer_id) FROM ray_commissions WHERE agent_id = $1', [agent.id]);
 
       return {
         agentId: agent.id,

@@ -13,7 +13,7 @@ const crypto = require('crypto'); // Added crypto import
 // @access  Private (Admin)
 router.get('/', auth, authorize('admin'), async (req, res) => {
   try {
-    const payments = await query('SELECT p.*, u.username as customer FROM payments p JOIN users u ON p.user_id = u.id ORDER BY p.payment_date DESC');
+    const payments = await query('SELECT p.*, u.username as customer FROM ray_payments p JOIN ray_users u ON p.user_id = u.id ORDER BY p.payment_date DESC');
     res.json(payments.rows);
   } catch (err) {
     console.error(err.message);
@@ -31,7 +31,7 @@ router.post('/manual', auth, authorize('admin', 'super-agent', 'agent'), async (
       return res.status(400).json({ msg: 'Loan ID is required for manual payments.' });
     }
 
-    const loan = await query('SELECT payment_cycle_amount FROM loans WHERE id = $1', [loan_id]);
+    const loan = await query('SELECT payment_cycle_amount FROM ray_loans WHERE id = $1', [loan_id]);
     if (loan.rows.length === 0) {
       return res.status(404).json({ msg: 'Loan not found.' });
     }
@@ -42,13 +42,13 @@ router.post('/manual', auth, authorize('admin', 'super-agent', 'agent'), async (
 
   try {
     // Check if user exists and is a customer
-    const user = await query('SELECT id, role FROM users WHERE id = $1 AND role = $2', [user_id, 'customer']);
+    const user = await query('SELECT id, role FROM ray_users WHERE id = $1 AND role = $2', [user_id, 'customer']);
     if (user.rows.length === 0) {
       return res.status(404).json({ msg: 'Customer not found' });
     }
 
     const newPayment = await query(
-      'INSERT INTO payments (user_id, amount, currency, payment_method, transaction_id, status, loan_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;',
+      'INSERT INTO ray_payments (user_id, amount, currency, payment_method, transaction_id, status, loan_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;',
       [user_id, amount, currency || 'NGN', payment_method || 'manual', transaction_id || null, 'completed', loan_id]
     );
 
@@ -86,7 +86,7 @@ router.post('/paystack/verify', auth, authorize('customer', 'admin'), async (req
     if (status && data.status === 'success') {
       // Payment is successful, record it in your database
       const newPayment = await query(
-        'INSERT INTO payments (user_id, amount, currency, payment_method, transaction_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;',
+        'INSERT INTO ray_payments (user_id, amount, currency, payment_method, transaction_id, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;',
         [user_id, data.amount / 100, data.currency, 'paystack', data.reference, 'completed'] // Paystack amount is in kobo/cents
       );
 
@@ -124,13 +124,13 @@ router.post('/paystack/webhook', async (req, res) => {
 
       try {
         // Check if payment already recorded to prevent duplicates
-        const existingPayment = await query('SELECT id FROM payments WHERE transaction_id = $1', [reference]);
+        const existingPayment = await query('SELECT id FROM ray_payments WHERE transaction_id = $1', [reference]);
         if (existingPayment.rows.length > 0) {
           return res.status(200).send('Payment already processed');
         }
 
         const newPayment = await query(
-          'INSERT INTO payments (user_id, amount, currency, payment_method, transaction_id, status, loan_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;',
+          'INSERT INTO ray_payments (user_id, amount, currency, payment_method, transaction_id, status, loan_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;',
           [user_id, amount / 100, currency, 'paystack', reference, 'completed', loan_id]
         );
 

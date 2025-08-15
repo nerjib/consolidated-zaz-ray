@@ -11,13 +11,13 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
   const { device_name, manufacturer, device_model, amount } = req.body;
 
   try {
-    let deviceType = await query('SELECT * FROM device_types WHERE device_model = $1', [device_model]);
+    let deviceType = await query('SELECT * FROM ray_device_types WHERE device_model = $1', [device_model]);
     if (deviceType.rows.length > 0) {
       return res.status(400).json({ msg: 'Device type with this model already exists' });
     }
 
     const newDeviceType = await query(
-      'INSERT INTO device_types (device_name, manufacturer, device_model, amount) VALUES ($1, $2, $3, $4) RETURNING *;',
+      'INSERT INTO ray_device_types (device_name, manufacturer, device_model, amount) VALUES ($1, $2, $3, $4) RETURNING *;',
       [device_name, manufacturer, device_model, amount]
     );
     res.json({ msg: 'Device type added successfully', deviceType: newDeviceType.rows[0] });
@@ -32,7 +32,7 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 // @access  Private (Admin, Agent)
 router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
   try {
-    const deviceTypes = await query('SELECT * FROM device_types');
+    const deviceTypes = await query('SELECT * FROM ray_device_types');
     res.json(deviceTypes.rows);
   } catch (err) {
     console.error(err.message);
@@ -49,7 +49,7 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
 
   try {
     const updatedDeviceType = await query(
-      'UPDATE device_types SET device_name = $1, manufacturer = $2, device_model = $3, amount = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *;',
+      'UPDATE ray_device_types SET device_name = $1, manufacturer = $2, device_model = $3, amount = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *;',
       [device_name, manufacturer, device_model, amount, id]
     );
 
@@ -70,7 +70,7 @@ router.delete('/:id', auth, authorize('admin'), async (req, res) => {
   const { id } = req.params;
 
   try {
-    const deletedDeviceType = await query('DELETE FROM device_types WHERE id = $1 RETURNING *;', [id]);
+    const deletedDeviceType = await query('DELETE FROM ray_device_types WHERE id = $1 RETURNING *;', [id]);
 
     if (deletedDeviceType.rows.length === 0) {
       return res.status(404).json({ msg: 'Device type not found' });
