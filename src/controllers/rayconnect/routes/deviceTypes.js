@@ -8,7 +8,7 @@ const { query } = require('../config/database');
 // @desc    Add a new device type
 // @access  Private (Admin only)
 router.post('/', auth, authorize('admin'), async (req, res) => {
-  const { device_name, manufacturer, device_model, amount } = req.body;
+  const { device_name, manufacturer, device_model, pricing } = req.body;
 
   try {
     let deviceType = await query('SELECT * FROM ray_device_types WHERE device_model = $1', [device_model]);
@@ -17,8 +17,8 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
     }
 
     const newDeviceType = await query(
-      'INSERT INTO ray_device_types (device_name, manufacturer, device_model, amount) VALUES ($1, $2, $3, $4) RETURNING *;',
-      [device_name, manufacturer, device_model, amount]
+      'INSERT INTO ray_device_types (device_name, manufacturer, device_model, pricing) VALUES ($1, $2, $3, $4) RETURNING *;',
+      [device_name, manufacturer, device_model, pricing]
     );
     res.json({ msg: 'Device type added successfully', deviceType: newDeviceType.rows[0] });
   } catch (err) {
@@ -45,12 +45,12 @@ router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
 // @access  Private (Admin only)
 router.put('/:id', auth, authorize('admin'), async (req, res) => {
   const { id } = req.params;
-  const { device_name, manufacturer, device_model, amount } = req.body;
+  const { device_name, manufacturer, device_model, pricing } = req.body;
 
   try {
     const updatedDeviceType = await query(
-      'UPDATE ray_device_types SET device_name = $1, manufacturer = $2, device_model = $3, amount = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *;',
-      [device_name, manufacturer, device_model, amount, id]
+      'UPDATE ray_device_types SET device_name = $1, manufacturer = $2, device_model = $3, pricing = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *;',
+      [device_name, manufacturer, device_model, pricing, id]
     );
 
     if (updatedDeviceType.rows.length === 0) {

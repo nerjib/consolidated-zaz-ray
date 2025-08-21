@@ -1,5 +1,7 @@
 require('dotenv').config({ path: '../.env' });
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
 
 const pool = new Pool({
   user: process.env.DB_USER || 'user',
@@ -10,11 +12,13 @@ const pool = new Pool({
 });
 
 async function migrate() {
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
     console.log('Starting database migration...');
 
     // Users table (for Admin, Agents, Customers)
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         username VARCHAR(255) UNIQUE NOT NULL,
@@ -35,7 +39,7 @@ async function migrate() {
    // table (for tracking device ray_loans/payment plans)
    
     // Device Types table
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_device_types (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         device_name VARCHAR(255) NOT NULL,
@@ -47,7 +51,7 @@ async function migrate() {
       );
     `);
     console.log('Table "ray_device_types" created or already exists.');
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_devices (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         serial_number VARCHAR(255) UNIQUE NOT NULL,
@@ -61,7 +65,7 @@ async function migrate() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_loans (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         customer_id UUID REFERENCES ray_users(id) ON DELETE CASCADE NOT NULL,
@@ -83,7 +87,7 @@ async function migrate() {
     `);
     console.log('Table "ray_loans" created or already exists.');
 
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_payments (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES ray_users(id) ON DELETE CASCADE NOT NULL, -- Customer ID
@@ -101,7 +105,7 @@ async function migrate() {
 
     // Loans 
     // Commissions table
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_commissions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         agent_id UUID REFERENCES ray_users(id) ON DELETE CASCADE NOT NULL,
@@ -116,7 +120,7 @@ async function migrate() {
 
     
     // Tokens table
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_tokens (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES ray_users(id) ON DELETE CASCADE NOT NULL,
@@ -130,26 +134,26 @@ async function migrate() {
 
 
     // Add new columns to ray_users table if they don't exist
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20);`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS state VARCHAR(255);`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS city VARCHAR(255);`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS address TEXT;`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS landmark TEXT;`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS gps VARCHAR(255);`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS last_active TIMESTAMP;`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS status VARCHAR(50);`);
-    await pool.query(`ALTER TABLE ray_payments ADD COLUMN IF NOT EXISTS loan_id UUID REFERENCES ray_loans(id) ON DELETE SET NULL;`);
-    await pool.query(`ALTER TABLE ray_devices ADD COLUMN IF NOT EXISTS device_type_id UUID REFERENCES ray_device_types(id) ON DELETE SET NULL;`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20);`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS state VARCHAR(255);`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS city VARCHAR(255);`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS address TEXT;`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS landmark TEXT;`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS gps VARCHAR(255);`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS last_active TIMESTAMP;`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS status VARCHAR(50);`);
+    await client.query(`ALTER TABLE ray_payments ADD COLUMN IF NOT EXISTS loan_id UUID REFERENCES ray_loans(id) ON DELETE SET NULL;`);
+    await client.query(`ALTER TABLE ray_devices ADD COLUMN IF NOT EXISTS device_type_id UUID REFERENCES ray_device_types(id) ON DELETE SET NULL;`);
 
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS last_withdrawal_date TIMESTAMP WITH TIME ZONE;`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS commission_paid DECIMAL(10, 2) DEFAULT 0.00;`);
-    await pool.query(`ALTER TABLE ray_loans ADD COLUMN IF NOT EXISTS agent_id UUID;`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS id_number varchar(255);`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS credit_score varchar(255);`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS last_withdrawal_date TIMESTAMP WITH TIME ZONE;`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS commission_paid DECIMAL(10, 2) DEFAULT 0.00;`);
+    await client.query(`ALTER TABLE ray_loans ADD COLUMN IF NOT EXISTS agent_id UUID;`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS id_number varchar(255);`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS credit_score varchar(255);`);
 
 
     // Agent Withdrawals table
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_agent_withdrawals (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         agent_id UUID REFERENCES ray_users(id) ON DELETE CASCADE NOT NULL,
@@ -161,7 +165,7 @@ async function migrate() {
     console.log('Table "ray_agent_withdrawals" created or already exists.');
 
     // Super Agent Withdrawals table
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_super_agent_withdrawals (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         super_agent_id UUID REFERENCES ray_users(id) ON DELETE CASCADE NOT NULL,
@@ -172,17 +176,17 @@ async function migrate() {
     `);
     console.log('Table "ray_super_agent_withdrawals" created or already exists.');
    
-    await pool.query(`ALTER TABLE ray_devices ADD COLUMN IF NOT EXISTS  customer_id UUID REFERENCES ray_users(id) ON DELETE CASCADE NULL;`);
-    await pool.query(`ALTER TABLE ray_devices ADD COLUMN IF NOT EXISTS  install_date TIMESTAMP NULL;`);
-     await pool.query(`ALTER TABLE ray_payments ADD COLUMN IF NOT EXISTS  loan_id UUID REFERENCES ray_loans(id) ON DELETE SET NULL;`)
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS super_agent_id UUID REFERENCES ray_users(id) ON DELETE SET NULL;`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS super_commission_rate DECIMAL(5, 2);`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS name varchar(256);`);
-    await pool.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES ray_users(id) ON DELETE SET NULL;`);
-    await pool.query(`ALTER TABLE ray_devices ADD COLUMN IF NOT EXISTS super_agent_id UUID REFERENCES ray_users(id) ON DELETE SET NULL;`);
+    await client.query(`ALTER TABLE ray_devices ADD COLUMN IF NOT EXISTS  customer_id UUID REFERENCES ray_users(id) ON DELETE CASCADE NULL;`);
+    await client.query(`ALTER TABLE ray_devices ADD COLUMN IF NOT EXISTS  install_date TIMESTAMP NULL;`);
+     await client.query(`ALTER TABLE ray_payments ADD COLUMN IF NOT EXISTS  loan_id UUID REFERENCES ray_loans(id) ON DELETE SET NULL;`)
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS super_agent_id UUID REFERENCES ray_users(id) ON DELETE SET NULL;`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS super_commission_rate DECIMAL(5, 2);`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS name varchar(256);`);
+    await client.query(`ALTER TABLE ray_users ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES ray_users(id) ON DELETE SET NULL;`);
+    await client.query(`ALTER TABLE ray_devices ADD COLUMN IF NOT EXISTS super_agent_id UUID REFERENCES ray_users(id) ON DELETE SET NULL;`);
 
     // Super Agent Commissions table
-    await pool.query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS ray_super_agent_commissions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         super_agent_id UUID REFERENCES ray_users(id) ON DELETE CASCADE NOT NULL,
@@ -194,10 +198,25 @@ async function migrate() {
       );
     `);
     console.log('Table "ray_super_agent_commissions" created or already exists.');
+
+    // Run additional migration scripts
+    const migrationsDir = path.join(__dirname, '.');
+    const migrationFiles = fs.readdirSync(migrationsDir).filter(file => file.endsWith('.sql'));
+
+    for (const file of migrationFiles) {
+      console.log(`Running migration script: ${file}`);
+      const script = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+      await client.query(script);
+    }
+
+    await client.query('COMMIT');
+    console.log('Database migration completed successfully.');
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Database migration failed:', error);
     process.exit(1);
   } finally {
+    client.release();
     await pool.end();
   }
 }

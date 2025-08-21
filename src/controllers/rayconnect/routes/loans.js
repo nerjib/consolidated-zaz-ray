@@ -8,28 +8,65 @@ const { query } = require('../config/database');
 // @desc    Create a new loan (Admin/Agent)
 // @access  Private (Admin, Agent)
 router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, res) => {
-  const { customer_id, device_id, device_price, term_months, down_payment = 0, guarantor_details, agent_id, payment_frequency = 'monthly' } = req.body;
+  const { customer_id, device_id, term_months, down_payment = 0, guarantor_details, agent_id, payment_frequency = 'monthly' } = req.body;
 
   try {
     // Basic validation
-    if (!customer_id || !device_id || !device_price || !term_months) {
-      return res.status(400).json({ msg: 'Please provide customer_id, device_id, device_price, and term_months' });
+    if (!customer_id || !device_id || term_months === undefined) {
+      return res.status(400).json({ msg: 'Please provide customer_id, device_id, and term_months' });
     }
 
     // Check if customer and device exist
     const customer = await query(`SELECT id FROM ray_users WHERE id = $1 AND role= $2`, [customer_id, 'customer']);
-    // console.log(customer);
     if (customer.rows.length === 0) {
       return res.status(404).json({ msg: 'Customer not found' });
     }
 
-    const device = await query('SELECT id, status FROM ray_devices WHERE id = $1', [device_id]);
-    if (device.rows.length === 0) {
+    const deviceResult = await query('SELECT id, status, device_type_id FROM ray_devices WHERE id = $1', [device_id]);
+    if (deviceResult.rows.length === 0) {
       return res.status(404).json({ msg: 'Device not found' });
     }
 
-    if (device.rows[0].status !== 'available') {
-      return res.status(400).json({ msg: 'Device is not available for assignment. Current status: ' + device.rows[0].status });
+    const device = deviceResult.rows[0];
+
+    if (device.status !== 'available') {
+      return res.status(400).json({ msg: 'Device is not available for assignment. Current status: ' + device.status });
+    }
+
+    // Get pricing from device type
+    const deviceTypeResult = await query('SELECT pricing FROM ray_device_types WHERE id = $1', [device.device_type_id]);
+    if (deviceTypeResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'Device type not found for this device.' });
+    }
+
+    const pricing = deviceTypeResult.rows[0].pricing;
+    let selectedPrice;
+
+    if (term_months === 0) {
+      selectedPrice = pricing['one-time'];
+    } else if (term_months === 12) {
+      selectedPrice = pricing['12-month'];
+    } else if (term_months === 24) {
+      selectedPrice = pricing['24-month'];
+    } else {
+      return res.status(400).json({ msg: 'Invalid term_months. Must be 0 (one-time), 12, or 24.' });
+    }
+
+    if (selectedPrice === undefined || selectedPrice === null) {
+      return res.status(400).json({ msg: `Price for ${term_months}-month plan not found for this device type.` });
+    }
+
+    // Check for active deals and validate payment frequency
+    const activeDeal = await query(
+      'SELECT allowed_payment_frequencies FROM ray_deals WHERE device_type_id = $1 AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE',
+      [device.device_type_id]
+    );
+
+    if (activeDeal.rows.length > 0) {
+      const allowedFrequencies = activeDeal.rows[0].allowed_payment_frequencies;
+      if (!allowedFrequencies.includes(payment_frequency)) {
+        return res.status(400).json({ msg: `Payment frequency '${payment_frequency}' is not allowed for this device type due to an active deal. Allowed frequencies: ${allowedFrequencies.join(', ')}` });
+      }
     }
 
     console.log('>>>>>>>>>', req.user.id, '££££££', device_id, 'cid', customer_id);
@@ -39,7 +76,7 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
       [customer_id, agent_id, 'assigned', device_id]
     );
     console.log('lllllllll', assignedDevice.rows[0]);
-    const total_amount = device_price - down_payment;
+    const total_amount = selectedPrice - down_payment;
     let payment_cycle_amount;
     let next_payment_date = new Date();
 
@@ -84,7 +121,7 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
 
 // @route   GET api/loans
 // @desc    Get all loans (Admin)
-// @access  Private (Admin)
+// // @access  Private (Admin)
 router.get('/', auth, authorize('admin'), async (req, res) => {
   try {
     const loans = await query(`
@@ -125,7 +162,7 @@ router.get('/:id', auth, async (req, res) => {
         l.start_date AS "startDate",
         l.end_date AS "endDate",
         l.next_payment_date AS "nextPaymentDate",
-        l.payment_cycle_amount AS "paymentAmountPerCycle",
+        l.payment_amount_per_cycle AS "paymentAmountPerCycle",
         l.down_payment AS "downPayment",
         l.term_months AS "termMonths",
         l.guarantor_details AS "guarantorDetails",
@@ -146,7 +183,13 @@ router.get('/:id', auth, async (req, res) => {
           'assignedTo', d.customer_id,
           'type', dt.device_name,
           'model', dt.device_model,
-          'status', d.status
+          'status', d.status,
+          'price', CASE
+            WHEN l.term_months = 0 THEN dt.pricing->>'one-time'
+            WHEN l.term_months = 12 THEN dt.pricing->>'12-months'
+            WHEN l.term_months = 24 THEN dt.pricing->>'24-months'
+            ELSE NULL
+          END
         ) AS device,
         json_build_object(
           'id', a.id,
@@ -208,7 +251,13 @@ router.get('/customer/:customerId', auth, async (req, res) => {
         l.next_payment_date AS "nextPaymentDate",
         dt.device_name AS "deviceType",
         d.serial_number AS "deviceId",
-        (l.amount_paid / l.total_amount) * 100 AS progress
+        (l.amount_paid / l.total_amount) * 100 AS progress,
+        CASE
+          WHEN l.term_months = 0 THEN dt.pricing->>'one-time'
+          WHEN l.term_months = 12 THEN dt.pricing->>'12-months'
+          WHEN l.term_months = 24 THEN dt.pricing->>'24-months'
+          ELSE NULL
+        END AS "devicePrice"
       FROM ray_loans l
       JOIN ray_devices d ON l.device_id = d.id
       JOIN ray_device_types dt ON d.device_type_id = dt.id

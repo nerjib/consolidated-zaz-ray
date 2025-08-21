@@ -88,4 +88,23 @@ console.log({username})
   }
 });
 
+// @route   GET api/auth/check-username/:username
+// @desc    Check if username is available
+// @access  Public
+router.get('/check-username/:username', async (req, res) => {
+  const { username } = req.params;
+
+  try {
+    const user = await query('SELECT id FROM ray_users WHERE username = $1', [username]);
+    if (user.rows.length > 0) {
+      return res.json({ available: false, msg: 'Username is already taken' });
+    } else {
+      return res.json({ available: true, msg: 'Username is available' });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
 module.exports = router;

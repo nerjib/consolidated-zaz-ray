@@ -23,8 +23,8 @@ router.post('/create-agent', auth, authorize('admin', 'super-agent'), async (req
     const superAgentId = req.user.role === 'super-agent' ? req.user.id : null;
 
     const newAgent = await query(
-      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, super_agent_id, name) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, super_agent_id, name',
-      [username, email, hashedPassword, req.user.role === 'super-agent' ? 'agent' : role, phone_number, state, city, address, landmark, gps, superAgentId, name]
+      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, super_agent_id, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, super_agent_id, name',
+      [username, email, hashedPassword, req.user.role === 'super-agent' ? 'agent' : role, phone_number, state, city, address, landmark, gps, superAgentId, name, req.user.role === 'admin' ? 'active' : 'pending']
     );
 
     res.json({ msg: 'Agent created successfully', agent: newAgent.rows[0] });
