@@ -130,9 +130,9 @@ router.post('/upload-excel', auth, authorize('admin'), upload.single('excelFile'
   if (!req.file) {
     return res.status(400).json({ msg: 'No file uploaded.' });
   }
-  let path = `${req.file.destination}/${req.file.originalname}`;
+  let filePath = req.file.path; // Use req.file.path for the absolute path
   try {
-    const workbook = xlsx.readFile(path);
+    const workbook = xlsx.readFile(filePath);
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(sheet);
