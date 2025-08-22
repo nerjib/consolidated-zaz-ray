@@ -8,24 +8,31 @@ const xlsx = require('xlsx');
 const path = require('path');
 
 // Configure multer for file uploads
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, './uploads'); // Temporary directory for upload
+// const upload = multer({
+//   storage: multer.diskStorage({
+//     destination: (req, file, cb) => {
+//       cb(null, './uploads'); // Temporary directory for upload
+//     },
+//     filename: (req, file, cb) => {
+//       cb(null, Date.now() + '-' + file.originalname); // Unique filename
+//     },
+//   }),
+//   fileFilter: (req, file, cb) => {
+//     if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.mimetype === 'application/vnd.ms-excel') {
+//       cb(null, true);
+//     } else {
+//       cb(new Error('Only Excel files (.xlsx, .xls) are allowed!'), false);
+//     }
+//   },
+// });
+const storage = multer.diskStorage({
+    distination: function (req, file, cb) {
+      cb(null, './uploads');
     },
-    filename: (req, file, cb) => {
-      cb(null, Date.now() + '-' + file.originalname); // Unique filename
+    filename: function (req, file, cb) {
+      cb(null, file.originalname);
     },
-  }),
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || file.mimetype === 'application/vnd.ms-excel') {
-      cb(null, true);
-    } else {
-      cb(new Error('Only Excel files (.xlsx, .xls) are allowed!'), false);
-    }
-  },
-});
-
+  });
 // @route   POST api/devices
 // @desc    Add a new device (Admin only)
 // @access  Private (Admin)
@@ -126,7 +133,7 @@ router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
 // @route   POST api/devices/upload-excel
 // @desc    Upload devices from an Excel file
 // @access  Private (Admin only)
-router.post('/upload-excel', auth, authorize('admin'), upload.single('excelFile'), async (req, res) => {
+router.post('/upload-excel', auth, authorize('admin'), storage.single('excelFile'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ msg: 'No file uploaded.' });
   }
