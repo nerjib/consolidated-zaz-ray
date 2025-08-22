@@ -346,18 +346,18 @@ router.get('/paystack/callback', async (req, res) => {
         const excessAmount = newAccumulatedPayment - loan.payment_cycle_amount;
         await handleSuccessfulPayment(user_id, loan.payment_cycle_amount, newPayment.rows[0].id, loan_id);
         await query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
-        res.redirect(`${process.env.FRONTEND_URL}/payment-status?status=success&message=Full payment processed&reference=${reference}&excessAmount=${excessAmount}`);
+        res.redirect(`${process.env.FRONTEND_URL}/payments/status?status=success&message=Full payment processed&reference=${reference}&excessAmount=${excessAmount}`);
       } else {
         await query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [newAccumulatedPayment, loan_id]);
         const remainingAmount = loan.payment_cycle_amount - newAccumulatedPayment;
-        res.redirect(`${process.env.FRONTEND_URL}/payment-status?status=success&message=Partial payment received&reference=${reference}&remainingAmount=${remainingAmount.toFixed(2)}`);
+        res.redirect(`${process.env.FRONTEND_URL}/payments/status?status=success&message=Partial payment received&reference=${reference}&remainingAmount=${remainingAmount.toFixed(2)}`);
       }
     } else {
-      res.redirect(`${process.env.FRONTEND_URL}/payment-status?status=failed&message=Payment verification failed`);
+      res.redirect(`${process.env.FRONTEND_URL}/payments/status?status=failed&message=Payment verification failed`);
     }
   } catch (err) {
     console.error('Paystack callback error:', err.message);
-    res.redirect(`${process.env.FRONTEND_URL}/payment-status?status=failed&message=An error occurred during verification`);
+    res.redirect(`${process.env.FRONTEND_URL}/payments/status?status=failed&message=An error occurred during verification`);
   }
 });
 
