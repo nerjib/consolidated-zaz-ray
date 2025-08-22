@@ -208,4 +208,83 @@ router.put('/assign-device-to-super-agent', auth, authorize('admin'), async (req
   }
 });
 
+// @route   POST api/admin/add-credit
+// @desc    Admin adds credit to an agent or super-agent
+// @access  Private (Admin only)
+router.post('/add-credit', auth, authorize('admin'), async (req, res) => {
+  const { user_id, amount, description } = req.body; // user_id is the agent/super-agent to add credit to
+
+  try {
+    // Validate input
+    if (!user_id || typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ msg: 'User ID and a positive amount are required.' });
+    }
+
+    // Check if user exists and is an agent or super-agent
+    const targetUser = await query("SELECT id, role, credit_balance FROM ray_users WHERE id = $1 AND (role = 'agent' OR role = 'super-agent')", [user_id]);
+    if (targetUser.rows.length === 0) {
+      return res.status(404).json({ msg: 'Target user not found or is not an agent/super-agent.' });
+    }
+
+    const oldBalance = parseFloat(targetUser.rows[0].credit_balance);
+    const newBalance = oldBalance + amount;
+
+    // Update user's credit balance
+    await query('UPDATE ray_users SET credit_balance = $1 WHERE id = $2', [newBalance, user_id]);
+
+    // Record the transaction
+    await query(
+      'INSERT INTO ray_credit_transactions (user_id, transaction_type, amount, new_balance, description, created_by) VALUES ($1, $2, $3, $4, $5, $6)',
+      [user_id, 'add', amount, newBalance, description || 'Admin added credit', req.user.id]
+    );
+
+    res.json({ msg: 'Credit added successfully', newBalance });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST api/admin/reconcile-credit
+// @desc    Admin reconciles (deducts) credit from an agent or super-agent
+// @access  Private (Admin only)
+router.post('/reconcile-credit', auth, authorize('admin'), async (req, res) => {
+  const { user_id, amount, description } = req.body; // user_id is the agent/super-agent to deduct credit from
+
+  try {
+    // Validate input
+    if (!user_id || typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ msg: 'User ID and a positive amount are required.' });
+    }
+
+    // Check if user exists and is an agent or super-agent
+    const targetUser = await query("SELECT id, role, credit_balance FROM ray_users WHERE id = $1 AND (role = 'agent' OR role = 'super-agent')", [user_id]);
+    if (targetUser.rows.length === 0) {
+      return res.status(404).json({ msg: 'Target user not found or is not an agent/super-agent.' });
+    }
+
+    const oldBalance = parseFloat(targetUser.rows[0].credit_balance);
+    const newBalance = oldBalance - amount; // Deduct credit
+
+    // Prevent negative balance if not explicitly allowed (optional, depending on business logic)
+    // if (newBalance < 0) {
+    //   return res.status(400).json({ msg: 'Cannot reconcile more credit than available balance.' });
+    // }
+
+    // Update user's credit balance
+    await query('UPDATE ray_users SET credit_balance = $1 WHERE id = $2', [newBalance, user_id]);
+
+    // Record the transaction
+    await query(
+      'INSERT INTO ray_credit_transactions (user_id, transaction_type, amount, new_balance, description, created_by) VALUES ($1, $2, $3, $4, $5, $6)',
+      [user_id, 'reconcile', amount, newBalance, description || 'Admin reconciled credit', req.user.id]
+    );
+
+    res.json({ msg: 'Credit reconciled successfully', newBalance });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;

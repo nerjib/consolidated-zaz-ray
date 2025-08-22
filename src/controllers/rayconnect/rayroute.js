@@ -5,7 +5,7 @@ const router = express.Router();
 
 // Basic route
 router.get('/', (req, res) => {
-  res.send('PayGo Backend API is running!');
+  res.send('rayKonet Backend API is running!');
 });
 
 // Define Routes

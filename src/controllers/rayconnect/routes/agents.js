@@ -17,6 +17,7 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
         u.phone_number AS phone, 
         u.state AS region, 
         u.status,
+        u.credit_balance,
         u.commission_rate AS "commissionRate",
         (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = u.id) AS "devicesManaged",
         (SELECT SUM(p.amount) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id = u.id) AS "totalSales",
@@ -51,6 +52,7 @@ router.get('/me', auth, authorize('agent', 'admin'), async (req, res) => {
         u.landmark,
         u.gps,
         u.status,
+        u.credit_balance,
         u.created_at AS "joinDate",
         u.last_active,
         u.commission_rate AS "commissionRate",
@@ -193,12 +195,27 @@ router.get('/available-devices', auth, authorize('agent'), async (req, res) => {
     const agentId = req.user.id; // Get the ID of the authenticated agent
     const devices = await query(`
       SELECT 
-        id, 
-        serial_number AS "serialNumber", 
-        model as type, 
-        model
-      FROM ray_devices
-      WHERE status = 'available' AND assigned_by = $1
+        d.id, 
+        d.serial_number AS "serialNumber", 
+        d.model as type,
+        d.status,
+         dt.device_name AS type,
+        dt.device_model AS model,
+        dt.pricing->>'one-time' AS price,
+        dt.pricing AS plan,
+         COALESCE(json_agg(DISTINCT deal.allowed_payment_frequencies) FILTER (WHERE deal.id IS NOT NULL), '["monthly", "weekly", "daily"]') AS "allowedPaymentFrequencies",
+        json_agg(json_build_object(
+          'id', deal.id,
+          'dealName', deal.deal_name,
+          'startDate', deal.start_date,
+          'endDate', deal.end_date,
+          'allowedPaymentFrequencies', deal.allowed_payment_frequencies
+        )) FILTER (WHERE deal.id IS NOT NULL) AS "activeDeals"
+      FROM ray_devices d
+      JOIN ray_device_types dt ON d.device_type_id = dt.id
+        LEFT JOIN ray_deals deal ON dt.id = deal.device_type_id AND deal.start_date <= CURRENT_DATE AND deal.end_date >= CURRENT_DATE
+      WHERE d.status = 'available' AND d.assigned_by = $1
+      GROUP BY d.id, dt.id
     `, [agentId]); // Filter by agent's ID (assuming assigned_to temporarily holds agent's ID)
     res.json(devices.rows);
   } catch (err) {
@@ -295,6 +312,7 @@ router.get('/:id', auth, async (req, res) => {
         u.status,
         u.created_at AS "joinDate",
         u.last_active,
+        u.credit_balance,
         u.commission_rate AS "commissionRate",
         COALESCE(SUM(c.amount), 0) AS "totalCommissionsEarned",
         u.commission_paid AS "commissionPaid",

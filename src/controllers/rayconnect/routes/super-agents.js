@@ -17,6 +17,7 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
         u.phone_number AS phone, 
         u.state AS region, 
         u.status,
+        u.credit_balance,
         u.commission_rate AS "commissionRate",
         (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = u.id) AS "agentsManaged",
         (SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = u.id) AS "totalCommissionsEarned",
@@ -46,6 +47,7 @@ router.get('/my-agents', auth, authorize('super-agent'), async (req, res) => {
         u.phone_number AS phone, 
         u.state AS region, 
         u.status,
+        u.credit_balance,
         (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = u.id) AS "devicesManaged",
         (SELECT SUM(p.amount) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id = u.id) AS "totalSales"
       FROM ray_users u
@@ -143,10 +145,20 @@ router.get('/devices', auth, authorize('super-agent'), async (req, res) => {
         d.status,
         dt.device_name AS type,
         dt.device_model AS model,
-        dt.amount
+        dt.pricing->>'one-time' AS price,
+        dt.pricing AS plan,
+        json_agg(json_build_object(
+          'id', deal.id,
+          'dealName', deal.deal_name,
+          'startDate', deal.start_date,
+          'endDate', deal.end_date,
+          'allowedPaymentFrequencies', deal.allowed_payment_frequencies
+        )) FILTER (WHERE deal.id IS NOT NULL) AS "activeDeals"
       FROM ray_devices d
       JOIN ray_device_types dt ON d.device_type_id = dt.id
+      LEFT JOIN ray_deals deal ON dt.id = deal.device_type_id AND deal.start_date <= CURRENT_DATE AND deal.end_date >= CURRENT_DATE
       WHERE d.super_agent_id = $1
+      GROUP BY d.id, dt.id
     `, [superAgentId]);
     res.json(devices.rows);
   } catch (err) {
@@ -209,6 +221,7 @@ router.get('/me', auth, async (req, res) => {
         u.status,
         u.created_at AS "joinDate",
         u.last_active,
+        u.credit_balance,
         u.commission_rate AS "commissionRate",
         COALESCE(SUM(sac.amount), 0) AS "totalCommissionsEarned",
         u.commission_paid AS "commissionPaid",
@@ -308,6 +321,7 @@ router.get('/:id', auth, async (req, res) => {
         u.address,
         u.landmark,
         u.gps,
+        u.credit_balance,
         u.status,
         u.created_at AS "joinDate",
         u.last_active,

@@ -73,7 +73,7 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
     // Assign device
     const assignedDevice = await query(
       'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *;',
-      [customer_id, agent_id, 'assigned', device_id]
+      [customer_id, agent_id ?? req.user.id, 'assigned', device_id]
     );
     console.log('lllllllll', assignedDevice.rows[0]);
     const total_amount = selectedPrice - down_payment;
@@ -101,7 +101,7 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
       'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *;',
       [customer_id, device_id, total_amount, down_payment, total_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, agent_id ?? req.user.id, loanStatus, payment_frequency, payment_cycle_amount]
     );
-
+    // console.log('ppppppppppppppppppppppp',{newLoan})
     res.json({ msg: 'Loan created successfully', loan: newLoan.rows[0] });
 
     // Update device status and assign to customer/agent
@@ -249,6 +249,7 @@ router.get('/customer/:customerId', auth, async (req, res) => {
         l.balance AS "remainingAmount",
         l.status,
         l.next_payment_date AS "nextPaymentDate",
+        l.payment_amount_per_cycle AS "paymentAmountPerCycle",
         dt.device_name AS "deviceType",
         d.serial_number AS "deviceId",
         (l.amount_paid / l.total_amount) * 100 AS progress,

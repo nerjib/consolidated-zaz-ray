@@ -70,6 +70,7 @@ console.log({username})
       user: {
         id: user.rows[0].id,
         role: user.rows[0].role,
+        email: user.rows[0].email
       },
     };
     await  query('UPDATE ray_users SET last_active = CURRENT_TIMESTAMP WHERE id = $1', [user.rows[0].id]);
