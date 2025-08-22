@@ -11,7 +11,7 @@ const path = require('path');
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      cb(null, './uploads'); // Temporary directory for uploads
+      cb(null, './uploads'); // Temporary directory for upload
     },
     filename: (req, file, cb) => {
       cb(null, Date.now() + '-' + file.originalname); // Unique filename
