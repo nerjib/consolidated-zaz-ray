@@ -80,12 +80,11 @@ const getBioliteAccessToken = async () => {
 const generateBioliteCode = async (serialNum, codeType, arg) => {
   try {
     const accessToken = await getBioliteAccessToken();
-
+    console.log({serialNum, codeType, arg})
     const response = await axios.post(`${BIOLITE_API_URL}/codes`, {
-      serialNum,
+      serialNum: Number(serialNum),
       codeType,
-      arg,
-      data: 1
+      arg
     }, {
       headers: {
         Authorization: accessToken,
