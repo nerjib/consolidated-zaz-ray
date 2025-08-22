@@ -87,7 +87,7 @@ const generateBioliteCode = async (serialNum, codeType, arg) => {
       arg
     }, {
       headers: {
-        Authorization: accessToken,
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
     });
