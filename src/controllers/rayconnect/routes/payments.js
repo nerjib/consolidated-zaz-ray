@@ -319,19 +319,19 @@ router.get('/paystack/callback', async (req, res) => {
 
       if (!user_id || !loan_id) {
         console.error('Callback: Missing user_id or loan_id in metadata');
-        return res.redirect(`${process.env.FRONTEND_URL}/payment-status?status=failed&message=Missing metadata`);
+        return res.redirect(`${process.env.FRONTEND_URL}/payments/status?status=failed&message=Missing metadata`);
       }
 
       // Check if payment already recorded to prevent duplicates
       const existingPayment = await query('SELECT id FROM ray_payments WHERE transaction_id = $1', [reference]);
       if (existingPayment.rows.length > 0) {
-        return res.redirect(`${process.env.FRONTEND_URL}/payment-status?status=success&message=Payment already processed&reference=${reference}`);
+        return res.redirect(`${process.env.FRONTEND_URL}/payments/status?status=success&message=Payment already processed&reference=${reference}`);
       }
 
       const loanResult = await query('SELECT payment_cycle_amount, current_cycle_accumulated_payment FROM ray_loans WHERE id = $1', [loan_id]);
       if (loanResult.rows.length === 0) {
         console.error('Callback: Loan not found for ID:', loan_id);
-        return res.redirect(`${process.env.FRONTEND_URL}/payment-status?status=failed&message=Loan not found`);
+        return res.redirect(`${process.env.FRONTEND_URL}/payments/status?status=failed&message=Loan not found`);
       }
       const loan = loanResult.rows[0];
 
