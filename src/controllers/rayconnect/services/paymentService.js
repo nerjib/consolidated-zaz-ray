@@ -50,7 +50,8 @@ const handleSuccessfulPayment = async (userId, amount, paymentId, loanId = null)
 
         if (serialNum) {
           try {
-            const bioliteResponse = await generateBioliteCode(278785910, 'add_time', 1);
+            //278785910
+            const bioliteResponse = await generateBioliteCode(serialNum, 'add_time', tokenExpirationDays);
             token = bioliteResponse.code; // Assuming the BioLite API returns the code in a 'code' field
             console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
           } catch (bioliteError) {

@@ -92,7 +92,7 @@ const generateBioliteCode = async (serialNum, codeType, arg) => {
         'Content-Type': 'application/json',
       },
     });
-
+    console.log('>>>>>>>>>>>>>>>>>bioliteCODE<<<<<<<<', response.data)
     return response.data; // the generated code and other details
   } catch (error) {
     console.error('Error generating BioLite code:', error.response ? error.response.data : error.message);
