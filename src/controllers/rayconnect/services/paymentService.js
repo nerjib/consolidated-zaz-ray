@@ -52,7 +52,7 @@ const handleSuccessfulPayment = async (userId, amount, paymentId, loanId = null)
           try {
             //278785910
             const bioliteResponse = await generateBioliteCode(serialNum, 'add_time', tokenExpirationDays);
-            token = bioliteResponse.code; // Assuming the BioLite API returns the code in a 'code' field
+            token = bioliteResponse.codeStr; // Assuming the BioLite API returns the code in a 'code' field
             console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
           } catch (bioliteError) {
             console.error('Failed to generate BioLite code, falling back to internal token:', bioliteError.message);
