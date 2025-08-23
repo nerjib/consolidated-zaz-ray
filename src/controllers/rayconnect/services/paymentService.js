@@ -47,30 +47,31 @@ const handleSuccessfulPayment = async (userId, amount, paymentId, loanId = null)
         // Get device serial number for BioLite
         const deviceResult = await query('SELECT d.serial_number, dt.manufacturer FROM ray_devices d LEFT JOIN ray_device_types dt on d.device_type_id = dt.id  WHERE d.id = $1', [deviceId]);
         const serialNum = deviceResult.rows.length > 0 ? deviceResult.rows[0].serial_number : null;
-        const manufacturer = deviceResult.rows.length > 0 ? deviceResult.rows[0].serial_number : null;
+        const manufacturer = deviceResult.rows.length > 0 ? deviceResult.rows[0].manufacturer : null;
 
         if (serialNum) {
           try {
             //278785910
+            console.log('mannnnn>>>>>>>>>>>', manufacturer);
             const bioliteResponse = manufacturer === 'biolite' ? await generateBioliteCode(serialNum, 'add_time', tokenExpirationDays) : null;
             token = bioliteResponse.codeStr; // Assuming the BioLite API returns the code in a 'code' field
             console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
           } catch (bioliteError) {
             console.error('Failed to generate BioLite code, falling back to internal token:', bioliteError.message);
             // Fallback to internal token generation if BioLite API fails
-            token = Math.floor(100000 + Math.random() * 900000).toString();
+            // token = Math.floor(100000 + Math.random() * 900000).toString();
           }
         } else {
           console.warn(`Device serial number not found for device ID: ${deviceId}. Falling back to internal token.`);
-          token = Math.floor(100000 + Math.random() * 900000).toString();
+          // token = Math.floor(100000 + Math.random() * 900000).toString();
         }
       } else {
         console.warn(`Loan ${loanId} not found. Falling back to internal token.`);
-        token = Math.floor(100000 + Math.random() * 900000).toString();
+        // token = Math.floor(100000 + Math.random() * 900000).toString();
       }
     } else {
       // If no loanId, generate a simple internal token
-      token = Math.floor(100000 + Math.random() * 900000).toString();
+      // token = Math.floor(100000 + Math.random() * 900000).toString();
     }
 
     // Save token to database
