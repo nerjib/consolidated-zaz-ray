@@ -8,7 +8,7 @@ async function updateOverdueLoans() {
 
     // Find loans that are active and whose next_payment_date has passed
     const overdueLoans = await query(
-      `SELECT id, serial_number, next_payment_date FROM ray_loans
+      `SELECT id, next_payment_date FROM ray_loans
        WHERE status = 'active' AND next_payment_date < CURRENT_DATE`
     );
 
@@ -23,7 +23,7 @@ async function updateOverdueLoans() {
     const updateResult = await query(
       `UPDATE ray_loans SET status = 'overdue', updated_at = CURRENT_TIMESTAMP
        WHERE status = 'active' AND next_payment_date < CURRENT_DATE
-       RETURNING id, serial_number`
+       RETURNING id`
     );
 
     console.log(`Successfully updated ${updateResult.rows.length} loans to 'overdue'.`);
