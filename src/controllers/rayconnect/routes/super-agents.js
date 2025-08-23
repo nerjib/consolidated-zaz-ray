@@ -23,7 +23,6 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
         (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = u.id AND role = 'agent') AS "agentsManaged",
         (SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = u.id) AS "totalCommissionsEarned",
         (SELECT SUM(p.amount) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id = u.id) AS "totalSales",
-        (SELECT setting_key, setting_value FROM ray_settings WHERE setting_key IN ('general_super_agent_commission_rate')) AS "genCommission",
         u.commission_paid AS "commissionPaid",
         ((SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = u.id) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
         u.last_active
@@ -341,7 +340,6 @@ router.get('/:id', auth, async (req, res) => {
           'status', a.status,
           'devicesManaged', (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = a.id)
         )) FROM ray_users a WHERE a.super_agent_id = u.id AND role = 'agent') AS "managedAgents",
-        (SELECT setting_key, setting_value FROM ray_settings WHERE setting_key IN ('general_super_agent_commission_rate')) AS "genCommission",
         (SELECT json_agg(json_build_object(
           'id', w.id,
           'amount', w.amount,
