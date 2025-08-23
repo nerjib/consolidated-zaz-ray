@@ -260,7 +260,7 @@ router.get('/payments', auth, authorize('agent'), async (req, res) => {
 // @route   POST api/agents/assign-device
 // @desc    Assign a device to a customer
 // @access  Private (Agent and Admin only)
-router.post('/assign-device', auth, authorize('agent', 'super-agent', 'admin'), async (req, res) => {
+router.post('/assign-device', auth, authorize('agenta', 'super-agenta', 'admina'), async (req, res) => {
   const { device_id, customer_id } = req.body;
 
   try {
