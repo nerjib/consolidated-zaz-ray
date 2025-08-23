@@ -45,13 +45,14 @@ const handleSuccessfulPayment = async (userId, amount, paymentId, loanId = null)
         }
 
         // Get device serial number for BioLite
-        const deviceResult = await query('SELECT serial_number FROM ray_devices WHERE id = $1', [deviceId]);
+        const deviceResult = await query('SELECT d.serial_number, dt.manufacturer FROM ray_devices d LEFT JOIN ray_device_types dt on d.device_type_id = dt.id  WHERE id = $1', [deviceId]);
         const serialNum = deviceResult.rows.length > 0 ? deviceResult.rows[0].serial_number : null;
+        const manufacturer = deviceResult.rows.length > 0 ? deviceResult.rows[0].serial_number : null;
 
         if (serialNum) {
           try {
             //278785910
-            const bioliteResponse = await generateBioliteCode(serialNum, 'add_time', tokenExpirationDays);
+            const bioliteResponse = manufacturer === 'biolite' ? await generateBioliteCode(serialNum, 'add_time', tokenExpirationDays) : null;
             token = bioliteResponse.codeStr; // Assuming the BioLite API returns the code in a 'code' field
             console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
           } catch (bioliteError) {
