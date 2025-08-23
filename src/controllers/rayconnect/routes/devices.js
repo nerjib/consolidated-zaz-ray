@@ -96,6 +96,7 @@ router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
         dt.pricing AS plan,
         d.assigned_to AS "assignedToId",
         cu.name AS "assignedToCustomerName",
+        cu.username AS "assignedToCustomerUsername",
         d.assigned_by AS "assignedById",
         ag.name AS "assignedByAgentName",
         d.super_agent_id AS "superAgentId",
@@ -116,7 +117,7 @@ router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
       LEFT JOIN ray_users sa ON d.super_agent_id = sa.id
       LEFT JOIN ray_deals deal ON dt.id = deal.device_type_id AND deal.start_date <= CURRENT_DATE AND deal.end_date >= CURRENT_DATE
        LEFT JOIN ray_loans l ON l.device_id = d.id
-      GROUP BY d.id, dt.id, cu.name, ag.name, sa.name, l.id
+      GROUP BY d.id, dt.id, cu.name, cu.username, ag.name, sa.name, l.id
     `);
     res.json(ray_devices.rows);
   } catch (err) {

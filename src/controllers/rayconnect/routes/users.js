@@ -10,7 +10,7 @@ const { query } = require('../config/database');
 // @desc    Create a new customer
 // @access  Private (Agent, Super-Agent)
 router.post('/create-customer', auth, authorize('agent', 'super-agent'), async (req, res) => {
-  const { username, email, password, phone_number, state, city, address, landmark } = req.body;
+  const { username, email, password, phone_number, state, city, address, landmark, name } = req.body;
   const creator = req.user;
   try {
     // Check if user already exists
@@ -24,8 +24,8 @@ router.post('/create-customer', auth, authorize('agent', 'super-agent'), async (
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newCustomer = await query(
-      `INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, created_by, super_agent_id) 
-       VALUES ($1, $2, $3, 'customer', $4, $5, $6, $7, $8, $9, $10) 
+      `INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, created_by, super_agent_id, name) 
+       VALUES ($1, $2, $3, 'customer', $4, $5, $6, $7, $8, $9, $10, $11) 
        RETURNING id, username, email, role, phone_number, state, city, address, landmark, created_by, super_agent_id`,
       [
         username, 
@@ -37,7 +37,8 @@ router.post('/create-customer', auth, authorize('agent', 'super-agent'), async (
         address, 
         landmark, 
         creator.id, 
-        creator.role === 'super-agent' ? creator.id : (await query('SELECT super_agent_id FROM ray_users WHERE id = $1', [creator.id])).rows[0].super_agent_id
+        creator.role === 'super-agent' ? creator.id : (await query('SELECT super_agent_id FROM ray_users WHERE id = $1', [creator.id])).rows[0].super_agent_id,
+        name
       ]
     );
 
