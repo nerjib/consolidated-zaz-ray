@@ -50,8 +50,8 @@ router.post('/create-super-agent', auth, authorize('admin'), async (req, res) =>
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newSuperAgent = await query(
-      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps',
-      [username, email, hashedPassword, 'super-agent', phone_number, state, city, address, landmark, gps]
+      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps',
+      [username, email, hashedPassword, 'super-agent', phone_number, state, city, address, landmark, gps, 'active']
     );
 
     res.json({ msg: 'Super-agent created successfully', superAgent: newSuperAgent.rows[0] });
