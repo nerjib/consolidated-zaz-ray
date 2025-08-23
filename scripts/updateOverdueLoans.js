@@ -28,7 +28,7 @@ async function updateOverdueLoans() {
 
     console.log(`Successfully updated ${updateResult.rows.length} loans to 'overdue'.`);
     updateResult.rows.forEach(loan => {
-      console.log(`  - Loan ID: ${loan.id}, Serial Number: ${loan.serial_number}`);
+      console.log(`  - Loan ID: ${loan.id}`);
     });
 
   } catch (error) {
