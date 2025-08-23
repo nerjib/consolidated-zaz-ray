@@ -99,7 +99,7 @@ router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
         d.assigned_by AS "assignedById",
         ag.name AS "assignedByAgentName",
         d.super_agent_id AS "superAgentId",
-        sa.username AS "superAgentName",
+        sa.name AS "superAgentName",
         COALESCE(json_agg(DISTINCT deal.allowed_payment_frequencies) FILTER (WHERE deal.id IS NOT NULL), '["monthly", "weekly", "daily"]') AS "allowedPaymentFrequencies",
         json_agg(json_build_object(
           'id', deal.id,
