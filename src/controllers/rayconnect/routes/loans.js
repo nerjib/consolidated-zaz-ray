@@ -105,14 +105,16 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
     res.json({ msg: 'Loan created successfully', loan: newLoan.rows[0] });
 
     // Update device status and assign to customer/agent
-    await query(
+    const updateDevice = await query(
       `
       UPDATE ray_devices 
       SET status = 'assigned', customer_id = $1, install_date = $2, assigned_by = $3
       WHERE id = $4
     `,
-      [customer_id, next_payment_date, req.user.id, device_id]
+      [customer_id, next_payment_date, agent_id ?? req.user.id, device_id]
     );
+
+    console.log(">>>>>>>>>last_assigned", updateDevice.rows[0]);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
