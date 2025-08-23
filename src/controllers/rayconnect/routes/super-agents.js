@@ -20,6 +20,7 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
         u.credit_balance,
         u.commission_rate AS "commissionRate",
         (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = u.id OR super_agent_id =u.id ) AS "devicesManaged",
+        (SELECT COUNT(*) FROM ray_users WHERE agent_id = u.id) AS "totalCustomers",
         (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = u.id AND role = 'agent') AS "agentsManaged",
         (SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = u.id) AS "totalCommissionsEarned",
         (SELECT SUM(p.amount) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id = u.id) AS "totalSales",
