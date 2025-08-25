@@ -72,9 +72,11 @@ router.get('/dashboard', auth, authorize('super-agent'), async (req, res) => {
 
     const dashboardData = await query(`
       SELECT
-        (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = $1) AS "agentsManaged",
-        (SELECT COUNT(DISTINCT l.customer_id) FROM ray_loans l WHERE l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1)) AS "totalCustomers",
-        (SELECT COALESCE(SUM(p.amount), 0) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1)) AS "totalSalesVolume",
+        (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = $1 AND role = 'agent') AS "agentsManaged",
+        (SELECT COUNT(DISTINCT l.customer_id) FROM ray_loans l WHERE l.status != 'complete' AND l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1)) AS "totalCustomers",
+        (SELECT COALESCE(SUM(p.amount), 0) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id IN (SELECT id FROM ray_users WHERE id = $1)) AS "mySalesVolume",
+              (SELECT COALESCE(SUM(p.amount), 0) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1)) AS "networkSalesVolume",
+          (SELECT COALESCE(SUM(p.amount), 0) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1 or id = $1)) AS "totalSalesVolume",
         (SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = $1) AS "totalCommissionsEarned"
     `, [superAgentId]);
 
@@ -288,13 +290,15 @@ router.get('/payments', auth, authorize('super-agent'), async (req, res) => {
         l.id AS loan_id,
         a.username AS agent_name,
         d.serial_number AS device_serial_number,
-        dt.device_name AS device_type
+        dt.device_name AS device_type,
+        t.token
       FROM ray_payments p
       JOIN ray_loans l ON p.loan_id = l.id
       JOIN ray_users u ON p.user_id = u.id
       JOIN ray_users a ON l.agent_id = a.id
       JOIN ray_devices d ON l.device_id = d.id
       JOIN ray_device_types dt ON d.device_type_id = dt.id
+      LEFT JOIN ray_tokens t ON t.payment_id = p.id
       WHERE d.super_agent_id = $1
       ORDER BY p.payment_date DESC
     `, [superAgentId]);

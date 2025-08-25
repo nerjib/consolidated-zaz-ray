@@ -242,12 +242,14 @@ router.get('/payments', auth, authorize('agent'), async (req, res) => {
         u.username AS customer_name,
         l.id AS loan_id,
         d.serial_number AS device_serial_number,
-        dt.device_name AS device_type
+        dt.device_name AS device_type,
+        t.token
       FROM ray_payments p
       JOIN ray_loans l ON p.loan_id = l.id
       JOIN ray_users u ON l.customer_id = u.id
       JOIN ray_devices d ON l.device_id = d.id
       JOIN ray_device_types dt ON d.device_type_id = dt.id
+      LEFT JOIN ray_tokens t ON t.payment_id = p.id
       WHERE l.agent_id = $1
       ORDER BY p.payment_date DESC
     `, [agentId]);
