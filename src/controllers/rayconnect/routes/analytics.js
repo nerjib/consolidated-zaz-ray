@@ -5,18 +5,19 @@ const authorize = require('../middleware/authorization');
 const { query } = require('../config/database');
 
 // @route   GET api/analytics/overview
-// @desc    Get overall platform performance analytics (Admin only)
+// @desc    Get overall platform performance analytics for the business (Admin only)
 // @access  Private (Admin)
 router.get('/overview', auth, authorize('admin'), async (req, res) => {
+  const { business_id } = req.user;
   try {
-    const totalPayments = await query('SELECT SUM(amount) FROM ray_payments WHERE status = $1',['completed']);
-    const totalLoans = await query('SELECT COUNT(*) FROM ray_loans');
-    const activeLoans = await query('SELECT COUNT(*) FROM ray_loans WHERE status = $1', ['active']);
-    const totalCustomers = await query('SELECT COUNT(*) FROM ray_users WHERE role = $1', ['customer']);
-    const totalAgents = await query('SELECT COUNT(*) FROM ray_users WHERE role = $1', ['agent']);
-    const totalDevices = await query('SELECT COUNT(*) FROM ray_devices');
-    const assignedDevices = await query('SELECT COUNT(*) FROM ray_devices WHERE status = $1', ['assigned']);
-    const availableDevices = await query('SELECT COUNT(*) FROM ray_devices WHERE status = $1', ['available']);
+    const totalPayments = await query('SELECT SUM(amount) FROM ray_payments WHERE status = $1 AND business_id = $2',['completed', business_id]);
+    const totalLoans = await query('SELECT COUNT(*) FROM ray_loans WHERE business_id = $1', [business_id]);
+    const activeLoans = await query('SELECT COUNT(*) FROM ray_loans WHERE status = $1 AND business_id = $2', ['active', business_id]);
+    const totalCustomers = await query('SELECT COUNT(*) FROM ray_users WHERE role = $1 AND business_id = $2', ['customer', business_id]);
+    const totalAgents = await query('SELECT COUNT(*) FROM ray_users WHERE role = $1 AND business_id = $2', ['agent', business_id]);
+    const totalDevices = await query('SELECT COUNT(*) FROM ray_devices WHERE business_id = $1', [business_id]);
+    const assignedDevices = await query('SELECT COUNT(*) FROM ray_devices WHERE status = $1 AND business_id = $2', ['assigned', business_id]);
+    const availableDevices = await query('SELECT COUNT(*) FROM ray_devices WHERE status = $1 AND business_id = $2', ['available', business_id]);
 
     res.json({
       totalPayments: parseFloat(totalPayments.rows[0].sum || 0),
@@ -35,16 +36,17 @@ router.get('/overview', auth, authorize('admin'), async (req, res) => {
 });
 
 // @route   GET api/analytics/agent-performance
-// @desc    Get performance metrics for all agents (Admin only)
+// @desc    Get performance metrics for all agents in the business (Admin only)
 // @access  Private (Admin)
 router.get('/agent-performance', auth, authorize('admin'), async (req, res) => {
+  const { business_id } = req.user;
   try {
-    const agents = await query('SELECT id, username, email, commission_rate FROM ray_users WHERE role = agent');
+    const agents = await query('SELECT id, username, email, commission_rate FROM ray_users WHERE role = $1 AND business_id = $2', ['agent', business_id]);
 
     const agentPerformance = await Promise.all(agents.rows.map(async (agent) => {
-      const totalCommissions = await query('SELECT SUM(amount) FROM ray_commissions WHERE agent_id = $1', [agent.id]);
-      const assignedDevicesCount = await query('SELECT COUNT(*) FROM ray_devices WHERE assigned_by = $1', [agent.id]);
-      const customersCount = await query('SELECT COUNT(DISTINCT customer_id) FROM ray_commissions WHERE agent_id = $1', [agent.id]);
+      const totalCommissions = await query('SELECT SUM(amount) FROM ray_commissions WHERE agent_id = $1 AND business_id = $2', [agent.id, business_id]);
+      const assignedDevicesCount = await query('SELECT COUNT(*) FROM ray_devices WHERE assigned_by = $1 AND business_id = $2', [agent.id, business_id]);
+      const customersCount = await query('SELECT COUNT(DISTINCT customer_id) FROM ray_loans WHERE agent_id = $1 AND business_id = $2', [agent.id, business_id]);
 
       return {
         agentId: agent.id,

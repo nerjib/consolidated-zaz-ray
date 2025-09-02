@@ -13,7 +13,8 @@ module.exports = async function (req, res, next) {
   // Verify token
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded.user;
+    req.user = decoded.user; // Attaches { id, role, email, business_id }
+
     // Update last_active timestamp
     await query('UPDATE ray_users SET last_active = CURRENT_TIMESTAMP WHERE id = $1', [req.user.id]);
 

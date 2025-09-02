@@ -1,25 +1,31 @@
 const AfricasTalking = require('africastalking');
 
-// Initialize AfricasTalking
-const africastalking = AfricasTalking({
-  apiKey: process.env.AFRICASTALKING_API_KEY || 'atsk_028f6176262c4ce1528ee1aa0a069c486f2727e760914262e5c4cb8f65b6ca341bba9606',
-  username: process.env.AFRICASTALKING_USERNAME || 'sandbox',
-});
+const sendSMS = async (to, message, credentials) => {
+  if (!credentials || !credentials.africastalking_api_key || !credentials.africastalking_username) {
+    console.error('SMS service is not configured for this business.');
+    // Silently fail or throw an error, depending on desired behavior.
+    // For now, we'll log and return to avoid halting the payment process.
+    return;
+  }
 
-const sms = africastalking.SMS;
+  const africastalking = AfricasTalking({
+    apiKey: credentials.africastalking_api_key,
+    username: credentials.africastalking_username,
+  });
 
-const sendSMS = async (to, message) => {
+  const sms = africastalking.SMS;
+
   try {
     const response = await sms.send({
       to: to,
       message: message,
-      from: process.env.AFRICASTALKING_SENDER_ID || 'PAYGO', // Optional: Your custom sender ID
+      from: process.env.AFRICASTALKING_SENDER_ID || 'PAYGO', // This could also be made a per-business setting
     });
     console.log('SMS sent successfully:', response);
     return response;
   } catch (error) {
-    // console.error('Error sending SMS:', error);
-    throw error;
+    console.error('Error sending SMS:', error.toString());
+    // Do not re-throw the error to prevent halting the entire payment flow
   }
 };
 

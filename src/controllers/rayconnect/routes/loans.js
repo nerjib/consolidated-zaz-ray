@@ -5,81 +5,64 @@ const authorize = require('../middleware/authorization');
 const { query } = require('../config/database');
 
 // @route   POST api/loans
-// @desc    Create a new loan (Admin/Agent)
-// @access  Private (Admin, Agent)
+// @desc    Create a new loan for a customer within the business
+// @access  Private (Admin, Agent, Super-Agent)
 router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, res) => {
   const { customer_id, device_id, term_months, down_payment = 0, guarantor_details, agent_id, payment_frequency = 'monthly' } = req.body;
+  const { business_id, id: creatorId } = req.user;
 
   try {
-    // Basic validation
     if (!customer_id || !device_id || term_months === undefined) {
       return res.status(400).json({ msg: 'Please provide customer_id, device_id, and term_months' });
     }
 
-    // Check if customer and device exist
-    const customer = await query(`SELECT id FROM ray_users WHERE id = $1 AND role= $2`, [customer_id, 'customer']);
+    const customer = await query(`SELECT id FROM ray_users WHERE id = $1 AND role= 'customer' AND business_id = $2`, [customer_id, business_id]);
     if (customer.rows.length === 0) {
-      return res.status(404).json({ msg: 'Customer not found' });
+      return res.status(404).json({ msg: 'Customer not found in your business.' });
     }
 
-    const deviceResult = await query('SELECT id, status, device_type_id FROM ray_devices WHERE id = $1', [device_id]);
+    const deviceResult = await query('SELECT id, status, device_type_id FROM ray_devices WHERE id = $1 AND business_id = $2', [device_id, business_id]);
     if (deviceResult.rows.length === 0) {
-      return res.status(404).json({ msg: 'Device not found' });
+      return res.status(404).json({ msg: 'Device not found in your business.' });
     }
-
     const device = deviceResult.rows[0];
-
     if (device.status !== 'available') {
       return res.status(400).json({ msg: 'Device is not available for assignment. Current status: ' + device.status });
     }
 
-    // Get pricing from device type
-    const deviceTypeResult = await query('SELECT pricing FROM ray_device_types WHERE id = $1', [device.device_type_id]);
+    const deviceTypeResult = await query('SELECT pricing FROM ray_device_types WHERE id = $1 AND business_id = $2', [device.device_type_id, business_id]);
     if (deviceTypeResult.rows.length === 0) {
-      return res.status(404).json({ msg: 'Device type not found for this device.' });
+      return res.status(404).json({ msg: 'Device type not found for this device in your business.' });
     }
 
     const pricing = deviceTypeResult.rows[0].pricing;
     let selectedPrice;
-
-    if (term_months === 0) {
-      selectedPrice = pricing['one-time'];
-    } else if (term_months === 12) {
-      selectedPrice = pricing['12-month'];
-    } else if (term_months === 24) {
-      selectedPrice = pricing['24-month'];
-    } else {
-      return res.status(400).json({ msg: 'Invalid term_months. Must be 0 (one-time), 12, or 24.' });
-    }
+    if (term_months === 0) selectedPrice = pricing['one-time'];
+    else if (term_months === 12) selectedPrice = pricing['12-month'];
+    else if (term_months === 24) selectedPrice = pricing['24-month'];
+    else return res.status(400).json({ msg: 'Invalid term_months. Must be 0, 12, or 24.' });
 
     if (selectedPrice === undefined || selectedPrice === null) {
       return res.status(400).json({ msg: `Price for ${term_months}-month plan not found for this device type.` });
     }
 
-    // Check for active deals and validate payment frequency
     const activeDeal = await query(
-      'SELECT allowed_payment_frequencies FROM ray_deals WHERE device_type_id = $1 AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE',
-      [device.device_type_id]
+      'SELECT allowed_payment_frequencies FROM ray_deals WHERE device_type_id = $1 AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE AND business_id = $2',
+      [device.device_type_id, business_id]
     );
-
-    if (activeDeal.rows.length > 0) {
-      const allowedFrequencies = activeDeal.rows[0].allowed_payment_frequencies;
-      if (!allowedFrequencies.includes(payment_frequency)) {
-        return res.status(400).json({ msg: `Payment frequency '${payment_frequency}' is not allowed for this device type due to an active deal. Allowed frequencies: ${allowedFrequencies.join(', ')}` });
-      }
+    if (activeDeal.rows.length > 0 && !activeDeal.rows[0].allowed_payment_frequencies.includes(payment_frequency)) {
+      return res.status(400).json({ msg: `Payment frequency '${payment_frequency}' is not allowed for this device type due to an active deal.` });
     }
 
-    console.log('>>>>>>>>>', req.user.id, '££££££', device_id, 'cid', customer_id);
-    // Assign device
-    const assignedDevice = await query(
-      'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *;',
-      [customer_id, agent_id ?? req.user.id, 'assigned', device_id]
+    const loanAgentId = agent_id || creatorId;
+    await query(
+      'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND business_id = $5;',
+      [customer_id, loanAgentId, 'assigned', device_id, business_id]
     );
-    console.log('lllllllll', assignedDevice.rows[0]);
+
     const total_amount = selectedPrice - down_payment;
     let payment_cycle_amount;
     let next_payment_date = new Date();
-
     switch (payment_frequency) {
       case 'daily':
         payment_cycle_amount = total_amount / (term_months * 30);
@@ -95,26 +78,12 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
         break;
     }
 
-    const loanStatus = req.user.role === 'admin' ? 'active' : 'active'; // Determine status based on user role
-
     const newLoan = await query(
-      'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *;',
-      [customer_id, device_id, total_amount, down_payment, total_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, agent_id ?? req.user.id, loanStatus, payment_frequency, payment_cycle_amount]
+      'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *;',
+      [customer_id, device_id, total_amount, down_payment, total_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, loanAgentId, 'active', payment_frequency, payment_cycle_amount, business_id]
     );
-    // console.log('ppppppppppppppppppppppp',{newLoan})
+
     res.json({ msg: 'Loan created successfully', loan: newLoan.rows[0] });
-
-    // Update device status and assign to customer/agent
-    // const updateDevice = await query(
-    //   `
-    //   UPDATE ray_devices 
-    //   SET status = 'assigned', customer_id = $1, install_date = $2, assigned_by = $3
-    //   WHERE id = $4
-    // `,
-    //   [customer_id, next_payment_date, agent_id ?? req.user.id, device_id]
-    // );
-
-    // console.log(">>>>>>>>>last_assigned", updateDevice.rows[0]);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -122,9 +91,10 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
 });
 
 // @route   GET api/loans
-// @desc    Get all loans (Admin)
-// // @access  Private (Admin)
+// @desc    Get all loans for the business (Admin)
+// @access  Private (Admin)
 router.get('/', auth, authorize('admin'), async (req, res) => {
+  const { business_id } = req.user;
   try {
     const loans = await query(`
       SELECT
@@ -137,8 +107,9 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
         l.payment_cycle_amount
       FROM ray_loans l
       JOIN ray_users u ON l.customer_id = u.id
+      WHERE l.business_id = $1
       ORDER BY l.id ASC
-    `);
+    `, [business_id]);
     res.json(loans.rows);
   } catch (err) {
     console.error(err.message);
@@ -147,15 +118,17 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
 });
 
 // @route   GET api/loans/:id
-// @desc    Get loan by ID (Admin, Agent, Customer if it's their loan)
+// @desc    Get loan by ID from the business
 // @access  Private
 router.get('/:id', auth, async (req, res) => {
   const { id } = req.params;
+  const { id: requesterId, role: requesterRole, business_id } = req.user;
 
   try {
     const loan = await query(`
       SELECT
         l.id AS loan_id,
+        l.customer_id,
         l.total_amount AS "totalAmount",
         l.amount_paid AS "paidAmount",
         l.balance AS "remainingAmount",
@@ -173,54 +146,29 @@ router.get('/:id', auth, async (req, res) => {
           'id', c.id,
           'name', c.username,
           'phone', c.phone_number,
-          'email', c.email,
-          'location', c.state,
-          'idNumber', c.id_number,
-          'creditScore', c.credit_score
+          'email', c.email
         ) AS customer,
         json_build_object(
           'id', d.id,
-          'serialNumber', d.serial_number,
-          'assignedBy', d.assigned_by,
-          'assignedTo', d.customer_id,
-          'type', dt.device_name,
-          'model', dt.device_model,
-          'status', d.status,
-          'price', CASE
-            WHEN l.term_months = 0 THEN dt.pricing->>'one-time'
-            WHEN l.term_months = 12 THEN dt.pricing->>'12-months'
-            WHEN l.term_months = 24 THEN dt.pricing->>'24-months'
-            ELSE NULL
-          END
+          'serialNumber', d.serial_number
         ) AS device,
         json_build_object(
           'id', a.id,
-          'username', a.username,
-          'email', a.email
+          'username', a.username
         ) AS agent,
-        (SELECT json_agg(json_build_object(
-          'id', p.id,
-          'date', p.payment_date,
-          'amount', p.amount,
-          'method', p.payment_method,
-          'reference', p.transaction_id,
-          'status', p.status,
-          'lateFee', 0 -- Placeholder for now
-        ) ORDER BY p.payment_date DESC) FROM ray_payments p WHERE p.loan_id = l.id) AS "paymentHistory"
+        (SELECT json_agg(p.*) FROM ray_payments p WHERE p.loan_id = l.id) AS "paymentHistory"
       FROM ray_loans l
       JOIN ray_users c ON l.customer_id = c.id
       JOIN ray_devices d ON l.device_id = d.id
-      JOIN ray_device_types dt ON d.device_type_id = dt.id
       LEFT JOIN ray_users a ON l.agent_id = a.id
-      WHERE l.id = $1
-    `, [id]);
+      WHERE l.id = $1 AND l.business_id = $2
+    `, [id, business_id]);
 
     if (loan.rows.length === 0) {
-      return res.status(404).json({ msg: 'Loan not found' });
+      return res.status(404).json({ msg: 'Loan not found in your business.' });
     }
 
-    // Authorize: Admin can view any loan, Agent can view any loan, Customer can only view their own loan
-    if (req.user.role === 'customer' && loan.rows[0].customer.id !== req.user.id) {
+    if (requesterRole === 'customer' && loan.rows[0].customer_id !== requesterId) {
       return res.status(403).json({ msg: 'Access denied: You can only view your own loans.' });
     }
 
@@ -232,14 +180,14 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // @route   GET api/loans/customer/:customerId
-// @desc    Get all loans for a specific customer
-// @access  Private (Admin, Agent, Customer - can only view their own loans)
+// @desc    Get all loans for a specific customer in the business
+// @access  Private
 router.get('/customer/:customerId', auth, async (req, res) => {
   const { customerId } = req.params;
+  const { id: requesterId, role: requesterRole, business_id } = req.user;
 
   try {
-    // Authorize: Admin and Agent can view any customer's loans, Customer can only view their own loans
-    if (req.user.role === 'customer' && req.user.id !== customerId) {
+    if (requesterRole === 'customer' && requesterId !== customerId) {
       return res.status(403).json({ msg: 'Access denied: You can only view your own loans.' });
     }
 
@@ -254,19 +202,13 @@ router.get('/customer/:customerId', auth, async (req, res) => {
         l.payment_amount_per_cycle AS "paymentAmountPerCycle",
         dt.device_name AS "deviceType",
         d.serial_number AS "deviceId",
-        (l.amount_paid / l.total_amount) * 100 AS progress,
-        CASE
-          WHEN l.term_months = 0 THEN dt.pricing->>'one-time'
-          WHEN l.term_months = 12 THEN dt.pricing->>'12-months'
-          WHEN l.term_months = 24 THEN dt.pricing->>'24-months'
-          ELSE NULL
-        END AS "devicePrice"
+        (l.amount_paid / l.total_amount) * 100 AS progress
       FROM ray_loans l
       JOIN ray_devices d ON l.device_id = d.id
       JOIN ray_device_types dt ON d.device_type_id = dt.id
-      WHERE l.customer_id = $1
+      WHERE l.customer_id = $1 AND l.business_id = $2
       ORDER BY l.next_payment_date ASC
-    `, [customerId]);
+    `, [customerId, business_id]);
 
     res.json(loans.rows);
   } catch (err) {
@@ -276,36 +218,28 @@ router.get('/customer/:customerId', auth, async (req, res) => {
 });
 
 // @route   PUT api/loans/:id
-// @desc    Update loan information
+// @desc    Update loan information in the business
 // @access  Private (Admin, Agent)
 router.put('/:id', auth, authorize('admin', 'agent'), async (req, res) => {
   const { id } = req.params;
   let { total_amount, term_months, status, next_payment_date, guarantor_details } = req.body;
+  const { business_id } = req.user;
 
   try {
-    const loanResult = await query('SELECT total_amount, term_months FROM ray_loans WHERE id = $1', [id]);
+    const loanResult = await query('SELECT total_amount, term_months, payment_frequency FROM ray_loans WHERE id = $1 AND business_id = $2', [id, business_id]);
     if (loanResult.rows.length === 0) {
-      return res.status(404).json({ msg: 'Loan not found' });
+      return res.status(404).json({ msg: 'Loan not found in your business.' });
     }
-
     const existingLoan = loanResult.rows[0];
 
-    // Use existing values if not provided in the request
     total_amount = total_amount !== undefined ? total_amount : existingLoan.total_amount;
     term_months = term_months !== undefined ? term_months : existingLoan.term_months;
 
-        // Recalculate payment_amount_per_cycle based on payment_frequency
     let payment_amount_per_cycle;
     switch (existingLoan.payment_frequency) {
-      case 'daily':
-        payment_amount_per_cycle = total_amount / (term_months * 30.4375);
-        break;
-      case 'weekly':
-        payment_amount_per_cycle = total_amount / (term_months * 4.3482);
-        break;
-      default: // monthly
-        payment_amount_per_cycle = total_amount / term_months;
-        break;
+      case 'daily': payment_amount_per_cycle = total_amount / (term_months * 30.4375); break;
+      case 'weekly': payment_amount_per_cycle = total_amount / (term_months * 4.3482); break;
+      default: payment_amount_per_cycle = total_amount / term_months; break;
     }
 
     const updatedLoan = await query(
@@ -317,8 +251,8 @@ router.put('/:id', auth, authorize('admin', 'agent'), async (req, res) => {
         next_payment_date = COALESCE($5, next_payment_date),
         guarantor_details = COALESCE($6, guarantor_details),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $7 RETURNING *`,
-      [total_amount, term_months, payment_amount_per_cycle, status, next_payment_date, guarantor_details, id]
+      WHERE id = $7 AND business_id = $8 RETURNING *`,
+      [total_amount, term_months, payment_amount_per_cycle, status, next_payment_date, guarantor_details, id, business_id]
     );
 
     res.json({ msg: 'Loan updated successfully', loan: updatedLoan.rows[0] });
@@ -329,25 +263,24 @@ router.put('/:id', auth, authorize('admin', 'agent'), async (req, res) => {
 });
 
 // @route   PUT api/loans/:id/approve
-// @desc    Approve a pending loan (Admin only)
+// @desc    Approve a pending loan in the business (Admin only)
 // @access  Private (Admin)
 router.put('/:id/approve', auth, authorize('admin'), async (req, res) => {
   const { id } = req.params;
+  const { business_id } = req.user;
 
   try {
-    const loan = await query('SELECT id, status FROM ray_loans WHERE id = $1', [id]);
-
+    const loan = await query('SELECT id, status FROM ray_loans WHERE id = $1 AND business_id = $2', [id, business_id]);
     if (loan.rows.length === 0) {
-      return res.status(404).json({ msg: 'Loan not found' });
+      return res.status(404).json({ msg: 'Loan not found in your business.' });
     }
-
     if (loan.rows[0].status !== 'pending') {
       return res.status(400).json({ msg: 'Loan is not pending approval. Current status: ' + loan.rows[0].status });
     }
 
     const approvedLoan = await query(
-      'UPDATE ray_loans SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *;',
-      ['active', id]
+      'UPDATE ray_loans SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING *;',
+      ['active', id, business_id]
     );
 
     res.json({ msg: 'Loan approved successfully', loan: approvedLoan.rows[0] });

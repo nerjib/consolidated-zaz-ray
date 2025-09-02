@@ -22,5 +22,8 @@ router.use('/api/device-types', require('./routes/deviceTypes'));
 router.use('/api/super-agents', require('./routes/super-agents'));
 router.use('/api/users', require('./routes/users'));
 router.use('/api/deals', require('./routes/deals'));
+router.use('/api/businesses', require('./routes/businesses'));
+router.use('/api/integrations', require('./routes/integrations'));
+router.use('/api/platform', require('./routes/platform'));
 
 module.exports = router;

@@ -1,0 +1,296 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-1234-abcdef123456",
+		"name": "RayConnect Multi-Tenant API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Business Management",
+			"item": [
+				{
+					"name": "Create Business",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"My New Business Inc.\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/businesses",
+							"host": ["{{baseUrl}}"],
+							"path": ["businesses"]
+						}
+					}
+				},
+				{
+					"name": "Update Business Credentials",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"paystack_secret_key\": \"sk_test_...\",\n  \"paystack_public_key\": \"pk_test_...\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/businesses/credentials",
+							"host": ["{{baseUrl}}"],
+							"path": ["businesses", "credentials"]
+						}
+					}
+				},
+				{
+					"name": "Generate B2B API Token",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Odyssey Platform Integration\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/businesses/api-tokens",
+							"host": ["{{baseUrl}}"],
+							"path": ["businesses", "api-tokens"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test(\"Status code is 200\", function () { pm.response.to.have.status(200); });", "var jsonData = pm.response.json();", "pm.environment.set(\"jwt_token\", jsonData.token);"],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"admin_user\",\n  \"password\": \"password123\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "User Management",
+			"item": [
+				{
+					"name": "Invite User to Business",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"new_agent\",\n  \"email\": \"new.agent@business.com\",\n  \"password\": \"agentpass\",\n  \"role\": \"agent\",\n  \"name\": \"New Agent Name\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/auth/register",
+							"host": ["{{baseUrl}}"],
+							"path": ["auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone_number\": \"+15551234567\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/{{user_id}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["users", "{{user_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Agents",
+			"item": [
+				{
+					"name": "List All Agents",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agents",
+							"host": ["{{baseUrl}}"],
+							"path": ["agents"]
+						}
+					}
+				},
+				{
+					"name": "Get Current Agent Profile (me)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/agents/me",
+							"host": ["{{baseUrl}}"],
+							"path": ["agents", "me"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Devices",
+			"item": [
+				{
+					"name": "List All Devices",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/devices",
+							"host": ["{{baseUrl}}"],
+							"path": ["devices"]
+						}
+					}
+				},
+				{
+					"name": "Add New Device",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"serial_number\": \"SN-123456789\",\n  \"device_type_id\": \"{{device_type_id}}\"\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/devices",
+							"host": ["{{baseUrl}}"],
+							"path": ["devices"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Loans",
+			"item": [
+				{
+					"name": "Create Loan",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{jwt_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customer_id\": \"{{customer_id}}\",\n  \"device_id\": \"{{device_id}}\",\n  \"term_months\": 12,\n  \"down_payment\": 50\n}",
+							"options": {"raw": {"language": "json"}}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/loans",
+							"host": ["{{baseUrl}}"],
+							"path": ["loans"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "B2B Integrations",
+			"item": [
+				{
+					"name": "Odyssey Payments Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{b2b_api_token}}"}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/integrations/odyssey/payments?FROM=2022-01-01T00:00:00Z&TO=2022-01-31T23:59:59Z",
+							"host": ["{{baseUrl}}"],
+							"path": ["integrations", "odyssey", "payments"],
+							"query": [
+								{"key": "FROM", "value": "2022-01-01T00:00:00Z"},
+								{"key": "TO", "value": "2022-01-31T23:59:59Z"}
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000/api"
+		},
+		{
+			"key": "jwt_token",
+			"value": ""
+		},
+		{
+			"key": "b2b_api_token",
+			"value": ""
+		},
+		{
+			"key": "user_id",
+			"value": ""
+		},
+		{
+			"key": "device_type_id",
+			"value": ""
+		},
+		{
+			"key": "device_id",
+			"value": ""
+		},
+		{
+			"key": "customer_id",
+			"value": ""
+		},
+		{
+			"key": "loan_id",
+			"value": ""
+		}
+	]
+}
