@@ -50,7 +50,7 @@ router.post('/login', async (req, res) => {
     // Check if user exists
     let userResult = await query('SELECT * FROM ray_users WHERE username = $1', [username]);
     if (userResult.rows.length === 0) {
-      return res.status(400).json({ msg: 'Invalid Credentials' });
+      return res.status(400).json({ msg: 'Invalid Credentials!' });
     }
 
     const user = userResult.rows[0];
