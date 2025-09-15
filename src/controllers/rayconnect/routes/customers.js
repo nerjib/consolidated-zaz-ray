@@ -192,8 +192,9 @@ router.get('/:id', auth, async (req, res) => {
           'method', p.payment_method,
           'reference', p.transaction_id,
           'status', p.status,
-          'loanId', p.loan_id
-        )) FROM ray_payments p WHERE p.user_id = u.id AND p.business_id = $2) AS "paymentHistory",
+          'loanId', p.loan_id,
+          'token', t.token
+        )) FROM ray_payments p LEFT JOIN ray_tokens t ON t.payment_id = p.id WHERE p.user_id = u.id AND p.business_id = $2) AS "paymentHistory",
         (SELECT json_agg(json_build_object(
           'id', a.id,
           'type', 'payment',

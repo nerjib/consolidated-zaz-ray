@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorization');
 const { query } = require('../config/database');
+const can = require('../middleware/can');
 
 // @route   POST api/device-types
 // @desc    Add a new device type to the business
@@ -31,7 +32,7 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 // @route   GET api/device-types
 // @desc    Get all device types for the business
 // @access  Private (Admin, Agent)
-router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
+router.get('/', auth, can('device-type:read',), async (req, res) => {
   const { business_id } = req.user;
   try {
     const deviceTypes = await query('SELECT * FROM ray_device_types WHERE business_id = $1', [business_id]);

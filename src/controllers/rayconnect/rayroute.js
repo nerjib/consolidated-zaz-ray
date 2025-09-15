@@ -13,6 +13,7 @@ router.use('/api/auth', require('./routes/auth'));
 router.use('/api/agents', require('./routes/agents'));
 router.use('/api/customers', require('./routes/customers'));
 router.use('/api/admin', require('./routes/admin'));
+router.use('/api/admin/roles', require('./routes/roles'));
 router.use('/api/devices', require('./routes/devices'));
 router.use('/api/payments', require('./routes/payments'));
 router.use('/api/loans', require('./routes/loans'));

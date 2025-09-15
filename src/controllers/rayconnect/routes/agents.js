@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const authorize = require('../middleware/authorization');
-const { query } = require('../config/database');
+const can = require('../middleware/can');
+const { query, pool } = require('../config/database');
 
 // @route   GET api/agents
 // @desc    Get all agents information for the business
-// @access  Private (Admin only)
-router.get('/', auth, authorize('admin'), async (req, res) => {
+// @access  Private (agent:read)
+router.get('/', auth, can('agent:read'), async (req, res) => {
   const { business_id } = req.user;
   try {
     const agents = await query(`
@@ -39,8 +39,8 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
 
 // @route   GET api/agents/me
 // @desc    Get current agent's profile with comprehensive details
-// @access  Private (Agent and Admin only)
-router.get('/me', auth, authorize('agent', 'admin'), async (req, res) => {
+// @access  Private (Authenticated Agent)
+router.get('/me', auth, async (req, res) => {
   const { id, business_id } = req.user;
   try {
     const agent = await query(`
@@ -84,7 +84,7 @@ router.get('/me', auth, authorize('agent', 'admin'), async (req, res) => {
     `, [id, business_id]);
 
     if (agent.rows.length === 0) {
-      return res.status(404).json({ msg: 'Agent not found' });
+      return res.status(404).json({ msg: 'Agent profile not found.' });
     }
     res.json(agent.rows[0]);
   } catch (err) {
@@ -95,8 +95,8 @@ router.get('/me', auth, authorize('agent', 'admin'), async (req, res) => {
 
 // @route   GET api/agents/dashboard
 // @desc    Get agent dashboard data
-// @access  Private (Agent only)
-router.get('/dashboard', auth, authorize('agent'), async (req, res) => {
+// @access  Private (Authenticated Agent)
+router.get('/dashboard', auth, async (req, res) => {
   const { id: agentId, business_id } = req.user;
   try {
     const totalCustomersResult = await query(
@@ -137,8 +137,8 @@ router.get('/dashboard', auth, authorize('agent'), async (req, res) => {
 
 // @route   GET api/agents/customers
 // @desc    Get customers onboarded by the current agent
-// @access  Private (Agent only)
-router.get('/customers', auth, authorize('agent'), async (req, res) => {
+// @access  Private (Authenticated Agent)
+router.get('/customers', auth, async (req, res) => {
   const { id: agentId, business_id } = req.user;
   try {
     const customers = await query(`
@@ -161,8 +161,8 @@ router.get('/customers', auth, authorize('agent'), async (req, res) => {
 
 // @route   GET api/agents/devices
 // @desc    Get devices assigned by the current agent
-// @access  Private (Agent only)
-router.get('/devices', auth, authorize('agent'), async (req, res) => {
+// @access  Private (Authenticated Agent)
+router.get('/devices', auth, async (req, res) => {
   const { id: agentId, business_id } = req.user;
   try {
     const devices = await query(`
@@ -186,8 +186,8 @@ router.get('/devices', auth, authorize('agent'), async (req, res) => {
 
 // @route   GET api/agents/available-devices
 // @desc    Get available devices for assignment by the current agent
-// @access  Private (Agent only)
-router.get('/available-devices', auth, authorize('agent'), async (req, res) => {
+// @access  Private (Authenticated Agent)
+router.get('/available-devices', auth, async (req, res) => {
   const { id: agentId, business_id } = req.user;
   try {
     const devices = await query(`
@@ -222,8 +222,8 @@ router.get('/available-devices', auth, authorize('agent'), async (req, res) => {
 
 // @route   GET api/agents/payments
 // @desc    Get payments related to loans originated by the current agent
-// @access  Private (Agent only)
-router.get('/payments', auth, authorize('agent'), async (req, res) => {
+// @access  Private (Authenticated Agent)
+router.get('/payments', auth, async (req, res) => {
   const { id: agentId, business_id } = req.user;
   try {
     const payments = await query(`
@@ -257,8 +257,8 @@ router.get('/payments', auth, authorize('agent'), async (req, res) => {
 
 // @route   POST api/agents/assign-device
 // @desc    Assign a device to a customer
-// @access  Private (Agent, Super-Agent, Admin)
-router.post('/assign-device', auth, authorize('agent', 'super-agent', 'admin'), async (req, res) => {
+// @access  Private (device:update)
+router.post('/assign-device', auth, can('device:update'), async (req, res) => {
   const { device_id, customer_id } = req.body;
   const { id: agentId, business_id } = req.user;
 
@@ -287,16 +287,18 @@ router.post('/assign-device', auth, authorize('agent', 'super-agent', 'admin'), 
 
 // @route   GET api/agents/:id
 // @desc    Get single agent data with all details
-// @access  Private (Admin, Agent - can only view their own profile)
-router.get('/:id', auth, async (req, res) => {
+// @access  Private (agent:read)
+router.get('/:id', auth, can('agent:read', ['super-agent', 'agent']), async (req, res) => {
   const { id: agentIdParam } = req.params;
-  const { id: requesterId, role: requesterRole, business_id } = req.user;
+  const { id: requesterId, business_id, role } = req.user;
+
+  // Internal logic still prevents an agent from seeing another agent's profile
+  // This check can be enhanced later with more granular permissions
+  if (!req.user.permissions.includes('agent:read') && requesterId !== agentIdParam && role !== 'super-agent') {
+      return res.status(403).json({ msg: 'Access denied: You can only view your own profile.' });
+  }
 
   try {
-    if (requesterRole === 'agent' && requesterId !== agentIdParam) {
-      return res.status(403).json({ msg: 'Access denied: You can only view your own profile.' });
-    }
-
     const agent = await query(
       `SELECT
         u.id,
@@ -338,7 +340,7 @@ router.get('/:id', auth, async (req, res) => {
       `,
       [agentIdParam, business_id]
     );
-
+    console.log({mmmm: agent.rows[0]})
     if (agent.rows.length === 0) {
       return res.status(404).json({ msg: 'Agent not found in your business.' });
     }
@@ -352,19 +354,21 @@ router.get('/:id', auth, async (req, res) => {
 
 // @route   PUT api/agents/:id
 // @desc    Update agent information
-// @access  Private (Admin, Agent - can only update their own profile)
-router.put('/:id', auth, async (req, res) => {
+// @access  Private (user:update)
+router.put('/:id', auth, can('user:update'), async (req, res) => {
   const { id: agentIdToUpdate } = req.params;
   const { username, email, phone_number, state, city, address, landmark, gps, commission_rate, status } = req.body;
-  const { id: requesterId, role: requesterRole, business_id } = req.user;
+  const { id: requesterId, permissions, business_id } = req.user;
 
   try {
-    if (requesterRole === 'agent' && requesterId !== agentIdToUpdate) {
-      return res.status(403).json({ msg: 'Access denied: You can only update your own profile.' });
+    // Allow user to update their own profile
+    if (requesterId !== agentIdToUpdate && !permissions.includes('user:manage')) {
+        return res.status(403).json({ msg: 'Access denied: You can only update your own profile.' });
     }
 
-    if (requesterRole !== 'admin' && (commission_rate !== undefined || status !== undefined)) {
-      return res.status(403).json({ msg: 'Access denied: Only administrators can update commission rate or status.' });
+    // Only users with specific permission can update sensitive fields
+    if ((commission_rate !== undefined || status !== undefined) && !permissions.includes('agent:set:commission')) {
+      return res.status(403).json({ msg: 'Access denied: You do not have permission to update commission rate or status.' });
     }
 
     const updatedAgent = await query(
@@ -396,14 +400,13 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // @route   POST api/agents/withdraw-commission
 // @desc    Agent withdraws commission
-// @access  Private (Agent, Admin)
-router.post('/withdraw-commission', auth, authorize('agent', 'admin'), async (req, res) => {
+// @access  Private (agent:withdraw:commission)
+router.post('/withdraw-commission', auth, can('agent:withdraw:commission', ['agent']), async (req, res) => {
   const { amount, transaction_id } = req.body;
   const { id: agentId, business_id } = req.user;
+  let client;
 
     try {
       const agentResult = await query(
@@ -437,21 +440,35 @@ router.post('/withdraw-commission', auth, authorize('agent', 'admin'), async (re
         return res.status(400).json({ msg: 'Invalid withdrawal amount or insufficient balance.' });
       }
 
+      client = await pool.connect();
+      await client.query('BEGIN');
+
       const finalTransactionId = transaction_id || `AW-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-      const newWithdrawal = await query(
+      const newWithdrawal = await client.query(
         'INSERT INTO ray_agent_withdrawals (agent_id, amount, transaction_id, business_id) VALUES ($1, $2, $3, $4) RETURNING *;',
         [agentId, amount, finalTransactionId, business_id]
       );
 
-      const updatedAgent = await query(
+      const updatedAgent = await client.query(
         'UPDATE ray_users SET commission_paid = commission_paid + $1, last_withdrawal_date = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING *;',
         [amount, agentId, business_id]
       );
 
+      await client.query('COMMIT');
+
       res.json({ msg: 'Commission withdrawn successfully', withdrawal: newWithdrawal.rows[0], agent: updatedAgent.rows[0] });
     } catch (err) {
+      if (client) {
+        await client.query('ROLLBACK');
+      }
       console.error(err.message);
       res.status(500).send('Server Error');
+    } finally {
+        if(client){
+            client.release();
+        }
     }
   });
+
+module.exports = router;

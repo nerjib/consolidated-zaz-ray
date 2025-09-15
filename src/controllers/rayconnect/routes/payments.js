@@ -7,11 +7,12 @@ const axios = require('axios');
 const { handleSuccessfulPayment } = require('../services/paymentService');
 const crypto = require('crypto');
 const { getBusinessCredentials } = require('../services/utils');
+const can = require('../middleware/can');
 
 // @route   GET api/payments
 // @desc    Get all payments for the business
 // @access  Private (Admin)
-router.get('/', auth, authorize('admin'), async (req, res) => {
+router.get('/', auth, can('payment:read'), async (req, res) => {
   const { business_id } = req.user;
   try {
     const payments = await query('SELECT p.*, u.username as customer FROM ray_payments p JOIN ray_users u ON p.user_id = u.id WHERE p.business_id = $1 ORDER BY p.payment_date DESC', [business_id]);
@@ -25,7 +26,7 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
 // @route   POST api/payments/manual
 // @desc    Record a manual payment in the business
 // @access  Private (Admin, Super-Agent, Agent)
-router.post('/manual', auth, authorize('admin', 'super-agent', 'agent'), async (req, res) => {
+router.post('/manual', auth, can('payment:create:manual'), async (req, res) => {
   const { user_id, amount, currency, payment_method, transaction_id, loan_id } = req.body;
   const { business_id } = req.user;
 
@@ -61,9 +62,15 @@ router.post('/manual', auth, authorize('admin', 'super-agent', 'agent'), async (
     const newAccumulatedPayment = parseFloat(loan.current_cycle_accumulated_payment) + amount;
 
     if (newAccumulatedPayment >= loan.payment_cycle_amount) {
-      const excessAmount = newAccumulatedPayment - loan.payment_cycle_amount;
-      await handleSuccessfulPayment(client, user_id, loan.payment_cycle_amount, newPayment.rows[0].id, loan_id, business_id);
-      await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
+      // const excessAmount = newAccumulatedPayment - loan.payment_cycle_amount;
+      // if (newAccumulatedPayment % loan.payment_cycle_amount !== 0) {
+        const highestMultiple = Math.floor(newAccumulatedPayment / loan.payment_cycle_amount) * loan.payment_cycle_amount;
+        const excessAmount = newAccumulatedPayment - highestMultiple;
+        await handleSuccessfulPayment(client, user_id, highestMultiple, newPayment.rows[0].id, loan_id, business_id);
+        await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
+        // res.json({ msg: 'Manual payment recorded successfully. Full cycle payment processed.', payment: newPayment.rows[0], excessAmount });
+      // await handleSuccessfulPayment(client, user_id, loan.payment_cycle_amount, newPayment.rows[0].id, loan_id, business_id);
+      // await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
       res.json({ msg: 'Manual payment recorded successfully. Full cycle payment processed.', payment: newPayment.rows[0], excessAmount });
     } else {
       await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [newAccumulatedPayment, loan_id]);
@@ -85,7 +92,7 @@ router.post('/manual', auth, authorize('admin', 'super-agent', 'agent'), async (
 // @route   POST api/payments/agent-credit
 // @desc    Agent makes a payment using their credit balance
 // @access  Private (Agent, Super-Agent, Admin)
-router.post('/agent-credit', auth, authorize('agent', 'super-agent', 'admin'), async (req, res) => {
+router.post('/agent-credit', auth, can('payment:create:manual'), async (req, res) => {
   const { user_id, amount, loan_id } = req.body;
   const { id: agentId, business_id } = req.user;
 
@@ -163,7 +170,7 @@ router.post('/agent-credit', auth, authorize('agent', 'super-agent', 'admin'), a
 // @route   POST api/payments/paystack/initiate
 // @desc    Initiate a Paystack transaction for the business
 // @access  Private (Customer)
-router.post('/paystack/initiate', auth, authorize('customer', 'super-agent', 'agent'), async (req, res) => {
+router.post('/paystack/initiate', auth,  async (req, res) => {
   const { amount, reference, metadata } = req.body;
   const { business_id, email } = req.user;
 

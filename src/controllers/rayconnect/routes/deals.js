@@ -3,11 +3,12 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorization');
 const { query } = require('../config/database');
+const can = require('../middleware/can');
 
 // @route   POST api/deals
 // @desc    Create a new deal for the business
 // @access  Private (Admin only)
-router.post('/', auth, authorize('admin'), async (req, res) => {
+router.post('/', auth, can('deals:create'), async (req, res) => {
   const { deal_name, device_type_id, allowed_payment_frequencies, start_date, end_date } = req.body;
   const { business_id } = req.user;
 
@@ -33,9 +34,9 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 });
 
 // @route   GET api/deals
-// @desc    Get all deals for the business
+// @desc    Get all deals for the business 
 // @access  Private (Admin only)
-router.get('/', auth, authorize('admin'), async (req, res) => {
+router.get('/', auth, can('deals:read'), async (req, res) => {
   const { business_id } = req.user;
   try {
     const deals = await query('SELECT * FROM ray_deals WHERE business_id = $1', [business_id]);
@@ -49,7 +50,7 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
 // @route   GET api/deals/:id
 // @desc    Get a specific deal by ID for the business
 // @access  Private (Admin only)
-router.get('/:id', auth, authorize('admin'), async (req, res) => {
+router.get('/:id', auth, can('deals:read'), async (req, res) => {
   const { id } = req.params;
   const { business_id } = req.user;
   try {
@@ -67,7 +68,7 @@ router.get('/:id', auth, authorize('admin'), async (req, res) => {
 // @route   PUT api/deals/:id
 // @desc    Update an existing deal for the business
 // @access  Private (Admin only)
-router.put('/:id', auth, authorize('admin'), async (req, res) => {
+router.put('/:id', auth, can('deals:update'), async (req, res) => {
   const { id } = req.params;
   const { deal_name, device_type_id, allowed_payment_frequencies, start_date, end_date } = req.body;
   const { business_id } = req.user;
@@ -98,7 +99,7 @@ router.put('/:id', auth, authorize('admin'), async (req, res) => {
 // @route   DELETE api/deals/:id
 // @desc    Delete a deal from the business
 // @access  Private (Admin only)
-router.delete('/:id', auth, authorize('admin'), async (req, res) => {
+router.delete('/:id', auth, can('deals:delete'), async (req, res) => {
   const { id } = req.params;
   const { business_id } = req.user;
   try {

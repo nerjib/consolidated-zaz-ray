@@ -1,15 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const authorize = require('../middleware/authorization');
-const { query } = require('../config/database');
+const can = require('../middleware/can');
+const { query, pool } = require('../config/database');
 
 // @route   POST api/loans
 // @desc    Create a new loan for a customer within the business
-// @access  Private (Admin, Agent, Super-Agent)
-router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, res) => {
-  const { customer_id, device_id, term_months, down_payment = 0, guarantor_details, agent_id, payment_frequency = 'monthly' } = req.body;
+// @access  Private (loan:create)
+router.post('/', auth, can('loan:create'), async (req, res) => {
+  console.log({bod: req.body})
+  const { customer_id, device_id, term_months, customer_address, customer_geocode, down_payment = 0, guarantor_details, agent_id, payment_frequency = 'monthly' } = req.body;
   const { business_id, id: creatorId } = req.user;
+  let client;
 
   try {
     if (!customer_id || !device_id || term_months === undefined) {
@@ -54,8 +56,11 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
       return res.status(400).json({ msg: `Payment frequency '${payment_frequency}' is not allowed for this device type due to an active deal.` });
     }
 
+    client = await pool.connect();
+    await client.query('BEGIN');
+
     const loanAgentId = agent_id || creatorId;
-    await query(
+    await client.query(
       'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND business_id = $5;',
       [customer_id, loanAgentId, 'assigned', device_id, business_id]
     );
@@ -78,22 +83,30 @@ router.post('/', auth, authorize('admin', 'agent', 'super-agent'), async (req, r
         break;
     }
 
-    const newLoan = await query(
-      'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *;',
-      [customer_id, device_id, total_amount, down_payment, total_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, loanAgentId, 'active', payment_frequency, payment_cycle_amount, business_id]
+    const newLoan = await client.query(
+      'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *;',
+      [customer_id, device_id, total_amount, down_payment, total_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, loanAgentId, 'active', payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address]
     );
 
+    await client.query('COMMIT');
     res.json({ msg: 'Loan created successfully', loan: newLoan.rows[0] });
   } catch (err) {
+    if (client) {
+      await client.query('ROLLBACK');
+    }
     console.error(err.message);
     res.status(500).send('Server Error');
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 
 // @route   GET api/loans
-// @desc    Get all loans for the business (Admin)
-// @access  Private (Admin)
-router.get('/', auth, authorize('admin'), async (req, res) => {
+// @desc    Get all loans for the business
+// @access  Private (loan:read)
+router.get('/', auth, can('loan:read'), async (req, res) => {
   const { business_id } = req.user;
   try {
     const loans = await query(`
@@ -119,15 +132,15 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
 
 // @route   GET api/loans/:id
 // @desc    Get loan by ID from the business
-// @access  Private
-router.get('/:id', auth, async (req, res) => {
+// @access  Private (loan:read)
+router.get('/:id', auth, can('loan:read'), async (req, res) => {
   const { id } = req.params;
-  const { id: requesterId, role: requesterRole, business_id } = req.user;
+  const { id: requesterId, permissions, business_id } = req.user;
 
   try {
-    const loan = await query(`
-      SELECT
-        l.id AS loan_id,
+    const loanResult = await query(`
+      SELECT 
+      l.id AS loan_id,
         l.customer_id,
         l.total_amount AS "totalAmount",
         l.amount_paid AS "paidAmount",
@@ -164,15 +177,18 @@ router.get('/:id', auth, async (req, res) => {
       WHERE l.id = $1 AND l.business_id = $2
     `, [id, business_id]);
 
-    if (loan.rows.length === 0) {
+    if (loanResult.rows.length === 0) {
       return res.status(404).json({ msg: 'Loan not found in your business.' });
     }
 
-    if (requesterRole === 'customer' && loan.rows[0].customer_id !== requesterId) {
-      return res.status(403).json({ msg: 'Access denied: You can only view your own loans.' });
+    const loan = loanResult.rows[0];
+
+    // Allow access if user is an admin or if they are the customer who owns the loan
+    if (loan.customer_id !== requesterId && !permissions.includes('loan:read')) {
+      return res.status(403).json({ msg: 'Access denied: You do not have permission to view this loan.' });
     }
 
-    res.json(loan.rows[0]);
+    res.json(loan);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -181,13 +197,14 @@ router.get('/:id', auth, async (req, res) => {
 
 // @route   GET api/loans/customer/:customerId
 // @desc    Get all loans for a specific customer in the business
-// @access  Private
-router.get('/customer/:customerId', auth, async (req, res) => {
+// @access  Private (loan:read)
+router.get('/customer/:customerId', auth, can('loan:read'), async (req, res) => {
   const { customerId } = req.params;
-  const { id: requesterId, role: requesterRole, business_id } = req.user;
+  const { id: requesterId, permissions, business_id } = req.user;
 
   try {
-    if (requesterRole === 'customer' && requesterId !== customerId) {
+    // Allow access if user is an admin or if they are the customer being queried
+    if (customerId !== requesterId && !permissions.includes('loan:read')) {
       return res.status(403).json({ msg: 'Access denied: You can only view your own loans.' });
     }
 
@@ -219,8 +236,8 @@ router.get('/customer/:customerId', auth, async (req, res) => {
 
 // @route   PUT api/loans/:id
 // @desc    Update loan information in the business
-// @access  Private (Admin, Agent)
-router.put('/:id', auth, authorize('admin', 'agent'), async (req, res) => {
+// @access  Private (loan:update)
+router.put('/:id', auth, can('loan:update'), async (req, res) => {
   const { id } = req.params;
   let { total_amount, term_months, status, next_payment_date, guarantor_details } = req.body;
   const { business_id } = req.user;
@@ -263,9 +280,9 @@ router.put('/:id', auth, authorize('admin', 'agent'), async (req, res) => {
 });
 
 // @route   PUT api/loans/:id/approve
-// @desc    Approve a pending loan in the business (Admin only)
-// @access  Private (Admin)
-router.put('/:id/approve', auth, authorize('admin'), async (req, res) => {
+// @desc    Approve a pending loan in the business
+// @access  Private (loan:approve)
+router.put('/:id/approve', auth, can('loan:approve'), async (req, res) => {
   const { id } = req.params;
   const { business_id } = req.user;
 

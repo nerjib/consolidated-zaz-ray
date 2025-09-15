@@ -1,21 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const authorize = require('../middleware/authorization');
+const can = require('../middleware/can');
 const bcrypt = require('bcryptjs');
 const { query } = require('../config/database');
 
 // @route   POST api/admin/create-agent
 // @desc    Create a new agent for the business
-// @access  Private (Admin, Super-Agent)
-router.post('/create-agent', auth, authorize('admin', 'super-agent'), async (req, res) => {
+// @access  Private (user:manage)
+router.post('/create-agent', auth, can('user:manage'), async (req, res) => {
   const { username, role, email, password, phone_number, state, city, address, landmark, gps, name } = req.body;
+  console.log({role});
   const { id: creatorId, business_id, role: creatorRole } = req.user;
-
+  const customerRole = await query('SELECT * FROM  roles WHERE  business_id = $1 AND name = $2', [business_id, 'Agent']);
+  const role_id = customerRole.rows.length > 0 ? customerRole.rows[0].id : null;
   if (!business_id) {
     return res.status(400).json({ msg: 'User is not associated with a business.' });
   }
-
+  if (!role_id) {
+    return res.status(400).json({ msg: 'Role not available' });
+  }
   try {
     let user = await query('SELECT * FROM ray_users WHERE (username = $1 OR email = $2) AND business_id = $3', [username, email, business_id]);
     if (user.rows.length > 0) {
@@ -28,8 +32,8 @@ router.post('/create-agent', auth, authorize('admin', 'super-agent'), async (req
     const superAgentId = creatorRole === 'super-agent' ? creatorId : null;
 
     const newAgent = await query(
-      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, super_agent_id, name, status, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, super_agent_id, name, business_id',
-      [username, email, hashedPassword, creatorRole === 'super-agent' ? 'agent' : role, phone_number, state, city, address, landmark, gps, superAgentId, name, creatorRole === 'admin' ? 'active' : 'pending', business_id]
+      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, super_agent_id, name, status, business_id, role_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, super_agent_id, name, business_id',
+      [username, email, hashedPassword, creatorRole === 'super-agent' ? 'agent' : role, phone_number, state, city, address, landmark, gps, superAgentId, name, creatorRole === 'admin' ? 'active' : 'pending', business_id, role_id]
     );
 
     res.json({ msg: 'Agent created successfully', agent: newAgent.rows[0] });
@@ -41,13 +45,18 @@ router.post('/create-agent', auth, authorize('admin', 'super-agent'), async (req
 
 // @route   POST api/admin/create-super-agent
 // @desc    Create a new super-agent for the business
-// @access  Private (Admin only)
-router.post('/create-super-agent', auth, authorize('admin'), async (req, res) => {
+// @access  Private (user:manage)
+router.post('/create-super-agent', auth, can('user:manage'), async (req, res) => {
   const { username, email, password, phone_number, state, city, address, landmark, gps } = req.body;
   const { business_id } = req.user;
+  const customerRole = await query('SELECT * FROM  roles WHERE  business_id = $1 AND name = $2', [business_id, role.toLowerCase() === 'agent' ? 'Agent': role.toLowerCase() === 'super-agent' ? 'Super Agent' : '']);
+  const role_id = customerRole.rows.length > 0 ? customerRole.rows[0].id : null;
 
   if (!business_id) {
     return res.status(400).json({ msg: 'User is not associated with a business.' });
+  }
+  if (!role_id) {
+    return res.status(400).json({ msg: 'Role not available' });
   }
 
   try {
@@ -60,8 +69,8 @@ router.post('/create-super-agent', auth, authorize('admin'), async (req, res) =>
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newSuperAgent = await query(
-      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, status, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, business_id',
-      [username, email, hashedPassword, 'super-agent', phone_number, state, city, address, landmark, gps, 'active', business_id]
+      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, status, business_id, role_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, business_id',
+      [username, email, hashedPassword, 'super-agent', phone_number, state, city, address, landmark, gps, 'active', business_id, role_id]
     );
 
     res.json({ msg: 'Super-agent created successfully', superAgent: newSuperAgent.rows[0] });
@@ -73,8 +82,8 @@ router.post('/create-super-agent', auth, authorize('admin'), async (req, res) =>
 
 // @route   PUT api/admin/set-agent-commission/:id
 // @desc    Set commission rate for an agent in the business
-// @access  Private (Admin only)
-router.put('/set-agent-commission/:id', auth, authorize('admin'), async (req, res) => {
+// @access  Private (agent:set:commission)
+router.put('/set-agent-commission/:id', auth, can('agent:set:commission'), async (req, res) => {
   const { id } = req.params;
   const { commission_rate } = req.body;
   const { business_id } = req.user;
@@ -103,8 +112,8 @@ router.put('/set-agent-commission/:id', auth, authorize('admin'), async (req, re
 
 // @route   PUT api/admin/super-agent/:id
 // @desc    Update super-agent information in the business
-// @access  Private (Admin only)
-router.put('/super-agent/:id', auth, authorize('admin'), async (req, res) => {
+// @access  Private (user:manage)
+router.put('/super-agent/:id', auth, can('user:manage'), async (req, res) => {
   const { id } = req.params;
   const { username, email, phone_number, state, city, address, landmark, gps, commission_rate, status } = req.body;
   const { business_id } = req.user;
@@ -147,8 +156,8 @@ router.put('/super-agent/:id', auth, authorize('admin'), async (req, res) => {
 
 // @route   GET api/admin/settings/commission
 // @desc    Get general commission rates for the business
-// @access  Private (Admin only)
-router.get('/settings/commission', auth, authorize('admin'), async (req, res) => {
+// @access  Private (business:update)
+router.get('/settings/commission', auth, can('business:update'), async (req, res) => {
   const { business_id } = req.user;
   try {
     const rates = await query("SELECT setting_key, setting_value FROM ray_settings WHERE business_id = $1 AND setting_key IN ('general_agent_commission_rate', 'general_super_agent_commission_rate')", [business_id]);
@@ -165,8 +174,8 @@ router.get('/settings/commission', auth, authorize('admin'), async (req, res) =>
 
 // @route   PUT api/admin/settings/commission
 // @desc    Update general commission rates for the business
-// @access  Private (Admin only)
-router.put('/settings/commission', auth, authorize('admin'), async (req, res) => {
+// @access  Private (business:update)
+router.put('/settings/commission', auth, can('business:update'), async (req, res) => {
   const { agent_rate, super_agent_rate } = req.body;
   const { business_id } = req.user;
 
@@ -186,8 +195,8 @@ router.put('/settings/commission', auth, authorize('admin'), async (req, res) =>
 
 // @route   PUT api/admin/assign-device-to-super-agent
 // @desc    Assign a device to a super-agent within the business
-// @access  Private (Admin only)
-router.put('/assign-device-to-super-agent', auth, authorize('admin'), async (req, res) => {
+// @access  Private (device:update)
+router.put('/assign-device-to-super-agent', auth, can('device:update'), async (req, res) => {
   const { deviceIds, superAgentId } = req.body;
   const { business_id } = req.user;
 
@@ -222,8 +231,8 @@ router.put('/assign-device-to-super-agent', auth, authorize('admin'), async (req
 
 // @route   POST api/admin/add-credit
 // @desc    Admin adds credit to an agent or super-agent in the business
-// @access  Private (Admin only)
-router.post('/add-credit', auth, authorize('admin'), async (req, res) => {
+// @access  Private (agent:manage:credit)
+router.post('/add-credit', auth, can('agent:manage:credit'), async (req, res) => {
   const { user_id, amount, description } = req.body;
   const { business_id, id: adminId } = req.user;
 
@@ -256,8 +265,8 @@ router.post('/add-credit', auth, authorize('admin'), async (req, res) => {
 
 // @route   POST api/admin/reconcile-credit
 // @desc    Admin reconciles (deducts) credit from an agent or super-agent in the business
-// @access  Private (Admin only)
-router.post('/reconcile-credit', auth, authorize('admin'), async (req, res) => {
+// @access  Private (agent:manage:credit)
+router.post('/reconcile-credit', auth, can('agent:manage:credit'), async (req, res) => {
   const { user_id, amount, description } = req.body;
   const { business_id, id: adminId } = req.user;
 
@@ -274,7 +283,7 @@ router.post('/reconcile-credit', auth, authorize('admin'), async (req, res) => {
     const oldBalance = parseFloat(targetUser.rows[0].credit_balance);
     const newBalance = oldBalance - amount;
 
-    // await query('UPDATE ray_users SET credit_balance = $1 WHERE id = $2 AND business_id = $3', [newBalance, user_id, business_id]);
+    await query('UPDATE ray_users SET credit_balance = $1 WHERE id = $2 AND business_id = $3', [newBalance, user_id, business_id]);
 
     await query(
       'INSERT INTO ray_credit_transactions (user_id, transaction_type, amount, new_balance, description, created_by, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
@@ -290,8 +299,8 @@ router.post('/reconcile-credit', auth, authorize('admin'), async (req, res) => {
 
 // @route   GET api/admin/credit-transactions
 // @desc    Get credit transactions for the business
-// @access  Private (Admin only)
-router.get('/credit-transactions', auth, authorize('admin'), async (req, res) => {
+// @access  Private (agent:read)
+router.get('/credit-transactions', auth, can('agent:read'), async (req, res) => {
     const { business_id } = req.user;
     const { user_id, transaction_type } = req.query;
 
@@ -310,12 +319,12 @@ router.get('/credit-transactions', auth, authorize('admin'), async (req, res) =>
 
         if (user_id) {
             queryParams.push(user_id);
-            queryText += ` AND ct.user_id = ${queryParams.length}`;
+            queryText += ` AND ct.user_id = $${queryParams.length}`;
         }
 
         if (transaction_type) {
             queryParams.push(transaction_type);
-            queryText += ` AND ct.transaction_type = ${queryParams.length}`;
+            queryText += ` AND ct.transaction_type = $${queryParams.length}`;
         }
 
         queryText += ' ORDER BY ct.created_at DESC';
@@ -332,8 +341,8 @@ router.get('/credit-transactions', auth, authorize('admin'), async (req, res) =>
 
 // @route   GET api/admin/agent/:id/credit-summary
 // @desc    Get a summary of credit activities for a specific agent
-// @access  Private (Admin only)
-router.get('/agent/:id/credit-summary', auth, authorize('admin'), async (req, res) => {
+// @access  Private (agent:read)
+router.get('/agent/:id/credit-summary', auth, can('agent:read'), async (req, res) => {
     const { id: agent_id } = req.params;
     const { business_id } = req.user;
 
@@ -378,25 +387,43 @@ router.get('/agent/:id/credit-summary', auth, authorize('admin'), async (req, re
 });
 
 // @route   PUT api/admin/devices/:id/reprocess
-// @desc    Reprocess a device to make it available again
-// @access  Private (Admin only)
-router.put('/devices/:id/reprocess', auth, authorize('admin'), async (req, res) => {
+// @desc    Reprocess a device to make it available again, with logging.
+// @access  Private (device:reprocess)
+router.put('/devices/:id/reprocess', auth, can('device:reprocess'), async (req, res) => {
     const { id: device_id } = req.params;
-    const { business_id } = req.user;
+    const { business_id, id: admin_id } = req.user;
+    const { reason, notes } = req.body;
+
+    if (!reason) {
+        return res.status(400).json({ msg: 'A reason for reprocessing is required.' });
+    }
+
+    const { pool } = require('../config/database');
+    const client = await pool.connect();
 
     try {
-        // Safety check: Ensure the device is not tied to an active loan
-        const activeLoan = await query(
+        await client.query('BEGIN');
+
+        // 1. Get the device's current state
+        const deviceResult = await client.query('SELECT status FROM ray_devices WHERE id = $1 AND business_id = $2 FOR UPDATE', [device_id, business_id]);
+        if (deviceResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ msg: 'Device not found in your business.' });
+        }
+        const previous_status = deviceResult.rows[0].status;
+
+        // 2. Safety check: Ensure the device is not tied to an active loan
+        const activeLoan = await client.query(
             "SELECT id FROM ray_loans WHERE device_id = $1 AND status = 'active' AND business_id = $2",
             [device_id, business_id]
         );
-
         if (activeLoan.rows.length > 0) {
-            return res.status(400).json({ status: false, msg: 'Device cannot be reprocessed. It is still tied to an active loan.', loan_id: activeLoan.rows[0].id });
+            await client.query('ROLLBACK');
+            return res.status(400).json({ msg: 'Device cannot be reprocessed. It is still tied to an active loan.', loan_id: activeLoan.rows[0].id });
         }
 
-        // Proceed to update the device
-        const updatedDevice = await query(
+        // 3. Update the device
+        const updatedDevice = await client.query(
             `UPDATE ray_devices
              SET
                 status = 'available',
@@ -411,11 +438,43 @@ router.put('/devices/:id/reprocess', auth, authorize('admin'), async (req, res) 
             [device_id, business_id]
         );
 
-        if (updatedDevice.rows.length === 0) {
-            return res.status(404).json({ msg: 'Device not found in your business.' });
-        }
+        // 4. Log the change in the history table
+        await client.query(
+            `INSERT INTO ray_device_history (device_id, business_id, changed_by, previous_status, new_status, reason, notes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [device_id, business_id, admin_id, previous_status, 'available', reason, notes]
+        );
 
-        res.json({ status: true, msg: 'Device has been successfully reprocessed and is now available.', device: updatedDevice.rows[0] });
+        await client.query('COMMIT');
+        res.json({ msg: 'Device has been successfully reprocessed and is now available.', device: updatedDevice.rows[0] });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    } finally {
+        client.release();
+    }
+});
+
+// @route   GET api/admin/devices/:id/history
+// @desc    Get the history log for a specific device
+// @access  Private (device:read)
+router.get('/devices/:id/history', auth, can('device:read'), async (req, res) => {
+    const { id: device_id } = req.params;
+    const { business_id } = req.user;
+
+    try {
+        const history = await query(
+            `SELECT h.*, u.username as changed_by_username
+             FROM ray_device_history h
+             LEFT JOIN ray_users u ON h.changed_by = u.id
+             WHERE h.device_id = $1 AND h.business_id = $2
+             ORDER BY h.created_at DESC`,
+            [device_id, business_id]
+        );
+
+        res.json(history.rows);
 
     } catch (err) {
         console.error(err.message);

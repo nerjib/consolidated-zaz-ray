@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorization');
-const { query } = require('../config/database');
+const { query, pool } = require('../config/database');
+const can = require('../middleware/can');
 
 // @route   GET api/super-agents
 // @desc    Get all super agents information for the business
 // @access  Private (Admin only)
-router.get('/', auth, authorize('admin'), async (req, res) => {
+router.get('/', auth, can('super:agent:read'), async (req, res) => {
   const { business_id } = req.user;
   try {
     const superAgents = await query(`
@@ -41,7 +42,7 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
 // @route   GET api/super-agents/my-agents
 // @desc    Get all agents for the current super-agent
 // @access  Private (Super-Agent only)
-router.get('/my-agents', auth, authorize('super-agent'), async (req, res) => {
+router.get('/my-agents', auth, can('agent:read',['super-agent']), async (req, res) => {
   const { id: superAgentId, business_id } = req.user;
   try {
     const agents = await query(`
@@ -78,7 +79,7 @@ router.get('/dashboard', auth, authorize('super-agent'), async (req, res) => {
         (SELECT COALESCE(SUM(p.amount), 0) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id = $1 AND p.business_id = $2) AS "mySalesVolume",
         (SELECT COALESCE(SUM(p.amount), 0) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE p.business_id = $2 AND l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1 AND business_id = $2)) AS "networkSalesVolume",
         (SELECT COALESCE(SUM(p.amount), 0) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE p.business_id = $2 AND (l.agent_id = $1 OR l.agent_id IN (SELECT id FROM ray_users WHERE super_agent_id = $1 AND business_id = $2))) AS "totalSalesVolume",
-        (SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = $1 AND sac.business_id = $2) AS "totalCommissionsEarned"
+        ((SELECT COALESCE(SUM(sac.amount), 0) FROM ray_super_agent_commissions sac WHERE sac.super_agent_id = $1 AND sac.business_id = $2) + (SELECT COALESCE(SUM(rc.amount), 0) FROM ray_commissions rc WHERE rc.agent_id = $1 AND rc.business_id = $2)) - (SELECT COALESCE(u.commission_paid, 0) FROM ray_users u where u.id =$1 AND u.business_id=$2) AS "totalCommissionsEarned"
     `, [superAgentId, business_id]);
     res.json(dashboardData.rows[0]);
   } catch (err) {
@@ -90,7 +91,7 @@ router.get('/dashboard', auth, authorize('super-agent'), async (req, res) => {
 // @route   GET api/super-agents/customers
 // @desc    Get all customers for the current super-agent's agents
 // @access  Private (Super-Agent only)
-router.get('/customers', auth, authorize('super-agent'), async (req, res) => {
+router.get('/customers', auth, async (req, res) => {
   const { id: superAgentId, business_id } = req.user;
   try {
     const customers = await query(`
@@ -114,7 +115,7 @@ router.get('/customers', auth, authorize('super-agent'), async (req, res) => {
   }
 });
 
-router.get('/mycustomers', auth, authorize('super-agent'), async (req, res) => {
+router.get('/mycustomers', auth, async (req, res) => {
   const { id: superAgentId, business_id } = req.user;
   try {
     const customers = await query(`
@@ -139,7 +140,7 @@ router.get('/mycustomers', auth, authorize('super-agent'), async (req, res) => {
 // @route   GET api/super-agents/devices
 // @desc    Get all devices assigned to the current super-agent
 // @access  Private (Super-Agent only)
-router.get('/devices', auth, authorize('super-agent'), async (req, res) => {
+router.get('/devices', auth, async (req, res) => {
   const { id: superAgentId, business_id } = req.user;
   try {
     const devices = await query(`
@@ -147,10 +148,12 @@ router.get('/devices', auth, authorize('super-agent'), async (req, res) => {
         d.id,
         d.serial_number AS "serialNumber",
         d.status,
+        d.assigned_by As "assignedBy",
         dt.device_name AS type,
         dt.device_model AS model,
         dt.pricing->>'one-time' AS price,
         dt.pricing AS plan,
+         (SELECT name FROM ray_users WHERE id = d.assigned_by  AND business_id = $2) AS "deviceManager",
         json_agg(json_build_object(
           'id', deal.id,
           'dealName', deal.deal_name,
@@ -174,7 +177,7 @@ router.get('/devices', auth, authorize('super-agent'), async (req, res) => {
 // @route   POST api/super-agents/assign-device
 // @desc    Assign a device to an agent
 // @access  Private (Super-Agent only)
-router.post('/assign-device', auth, authorize('super-agent'), async (req, res) => {
+router.post('/assign-device', auth, can('devices:assign', ['super-agent']), async (req, res) => {
   const { device_id, agent_id } = req.body;
   const { id: superAgentId, business_id } = req.user;
 
@@ -204,7 +207,7 @@ router.post('/assign-device', auth, authorize('super-agent'), async (req, res) =
 // @route   GET api/super-agents/me
 // @desc    Get super agent data with all details
 // @access  Private (Super-Agent only)
-router.get('/me', auth, authorize('super-agent'), async (req, res) => {
+router.get('/me', auth,  async (req, res) => {
   const { id, business_id } = req.user;
 
   try {
@@ -226,7 +229,7 @@ router.get('/me', auth, authorize('super-agent'), async (req, res) => {
         u.commission_rate AS "commissionRate",
         COALESCE(SUM(sac.amount), 0) AS "totalCommissionsEarned",
         u.commission_paid AS "commissionPaid",
-        ((SELECT COALESCE(SUM(sac2.amount), 0) FROM ray_super_agent_commissions sac2 WHERE sac2.super_agent_id = u.id AND sac2.business_id = $2) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
+        (((SELECT COALESCE(SUM(sac2.amount), 0) FROM ray_super_agent_commissions sac2 WHERE sac2.super_agent_id = u.id AND sac2.business_id = $2) + (SELECT COALESCE(SUM(rc.amount), 0) FROM ray_commissions rc WHERE rc.agent_id = u.id AND rc.business_id = $2)) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
         (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = u.id AND business_id = $2) AS "agentsManaged",
         (SELECT json_agg(json_build_object(
           'id', a.id,
@@ -264,7 +267,7 @@ router.get('/me', auth, authorize('super-agent'), async (req, res) => {
 // @route   GET api/super-agents/payments
 // @desc    Get all payments related to the current super-agent's network
 // @access  Private (Super-Agent only)
-router.get('/payments', auth, authorize('super-agent'), async (req, res) => {
+router.get('/payments', auth, async (req, res) => {
   const { id: superAgentId, business_id } = req.user;
   try {
     const payments = await query(`
@@ -328,7 +331,7 @@ router.get('/:id', auth, async (req, res) => {
         u.commission_rate AS "commissionRate",
         COALESCE(SUM(sac.amount), 0) AS "totalCommissionsEarned",
         u.commission_paid AS "commissionPaid",
-        ((SELECT COALESCE(SUM(sac2.amount), 0) FROM ray_super_agent_commissions sac2 WHERE sac2.super_agent_id = u.id AND sac2.business_id = $2) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
+        (((SELECT COALESCE(SUM(sac2.amount), 0) FROM ray_super_agent_commissions sac2 WHERE sac2.super_agent_id = u.id AND sac2.business_id = $2) + (SELECT COALESCE(SUM(rc.amount), 0) FROM ray_commissions rc WHERE rc.agent_id = u.id AND rc.business_id = $2)) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
         (SELECT COUNT(*) FROM ray_users WHERE super_agent_id = u.id AND role = 'agent' AND business_id = $2) AS "agentsManaged",
         (SELECT json_agg(json_build_object(
           'id', a.id,
@@ -412,20 +415,22 @@ router.put('/:id', auth, async (req, res) => {
 // @route   POST api/super-agents/withdraw-commission
 // @desc    Super Agent withdraws commission
 // @access  Private (Super-Agent, Admin)
-router.post('/withdraw-commission', auth, authorize('super-agent', 'admin'), async (req, res) => {
+router.post('/withdraw-commission', auth, can('super:agent:withdraw:commission', ['super-agent']), async (req, res) => {
   const { amount } = req.body;
   const { id: superAgentId, business_id } = req.user;
+  let client;
 
   try {
     const superAgentResult = await query(
-      `SELECT 
-        COALESCE(SUM(sac.amount), 0) AS total_earned,
-        COALESCE(u.commission_paid, 0) AS total_paid,
+      `SELECT
+        (
+            (SELECT COALESCE(SUM(amount), 0) FROM ray_super_agent_commissions WHERE super_agent_id = $1 AND business_id = $2) +
+            (SELECT COALESCE(SUM(amount), 0) FROM ray_commissions WHERE agent_id = $1 AND business_id = $2)
+        ) AS total_earned,
+        u.commission_paid AS total_paid,
         u.last_withdrawal_date
       FROM ray_users u
-      LEFT JOIN ray_super_agent_commissions sac ON sac.super_agent_id = u.id AND sac.business_id = $2
-      WHERE u.id = $1 AND u.business_id = $2
-      GROUP BY u.commission_paid, u.last_withdrawal_date`,
+      WHERE u.id = $1 AND u.business_id = $2`,
       [superAgentId, business_id]
     );
 
@@ -448,22 +453,33 @@ router.post('/withdraw-commission', auth, authorize('super-agent', 'admin'), asy
       return res.status(400).json({ msg: 'Invalid withdrawal amount or insufficient balance.' });
     }
 
+    client = await pool.connect();
+    await client.query('BEGIN');
+
     const finalTransactionId = `SAW-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-    const newWithdrawal = await query(
+    const newWithdrawal = await client.query(
       'INSERT INTO ray_super_agent_withdrawals (super_agent_id, amount, transaction_id, business_id) VALUES ($1, $2, $3, $4) RETURNING *;',
       [superAgentId, amount, finalTransactionId, business_id]
     );
 
-    const updatedSuperAgent = await query(
+    const updatedSuperAgent = await client.query(
       'UPDATE ray_users SET commission_paid = commission_paid + $1, last_withdrawal_date = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING *;',
       [amount, superAgentId, business_id]
     );
 
+    await client.query('COMMIT');
     res.json({ msg: 'Commission withdrawn successfully', withdrawal: newWithdrawal.rows[0], superAgent: updatedSuperAgent.rows[0] });
   } catch (err) {
+    if (client) {
+      await client.query('ROLLBACK');
+    }
     console.error(err.message);
     res.status(500).send('Server Error');
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 

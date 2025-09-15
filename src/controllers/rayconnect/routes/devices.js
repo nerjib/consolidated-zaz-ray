@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const authorize = require('../middleware/authorization');
+const can = require('../middleware/can');
 const { query } = require('../config/database');
 const multer = require('multer');
 const xlsx = require('xlsx');
@@ -14,7 +14,7 @@ const upload = multer({
       cb(null, './uploads'); // Temporary directory for upload
     },
     filename: (req, file, cb) => {
-      cb(null, Date.now() + '-' + file.originalname); // Unique filename
+      cb(null, Date.now() + '-' + file.originalname);
     },
   }),
   fileFilter: (req, file, cb) => {
@@ -27,9 +27,9 @@ const upload = multer({
 });
 
 // @route   POST api/devices
-// @desc    Add a new device to the business (Admin only)
-// @access  Private (Admin)
-router.post('/', auth, authorize('admin'), async (req, res) => {
+// @desc    Add a new device to the business
+// @access  Private (device:create)
+router.post('/', auth, can('device:create'), async (req, res) => {
   const { serial_number, device_type_id } = req.body;
   const { business_id } = req.user;
 
@@ -59,9 +59,9 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
 });
 
 // @route   PUT api/devices/:id/approve
-// @desc    Approve a device in the business (Admin only)
-// @access  Private (Admin)
-router.put('/:id/approve', auth, authorize('admin'), async (req, res) => {
+// @desc    Approve a device in the business
+// @access  Private (device:approve)
+router.put('/:id/approve', auth, can('device:approve'), async (req, res) => {
   const { id } = req.params;
   const { business_id } = req.user;
 
@@ -81,9 +81,9 @@ router.put('/:id/approve', auth, authorize('admin'), async (req, res) => {
 });
 
 // @route   GET api/devices
-// @desc    Get all devices for the business (Admin and Agent only)
-// @access  Private (Admin, Agent)
-router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
+// @desc    Get all devices for the business
+// @access  Private (device:read)
+router.get('/', auth, can('device:read'), async (req, res) => {
   const { business_id } = req.user;
   try {
     const devices = await query(`
@@ -131,8 +131,8 @@ router.get('/', auth, authorize('admin', 'agent'), async (req, res) => {
 
 // @route   POST api/devices/upload-excel
 // @desc    Upload devices from an Excel file for the business
-// @access  Private (Admin only)
-router.post('/upload-excel', auth, authorize('admin'), upload.single('excelFile'), async (req, res) => {
+// @access  Private (device:create)
+router.post('/upload-excel', auth, can('device:create'), upload.single('excelFile'), async (req, res) => {
   const { business_id } = req.user;
   if (!req.file) {
     return res.status(400).json({ msg: 'No file uploaded.' });

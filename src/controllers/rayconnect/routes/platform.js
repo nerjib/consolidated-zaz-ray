@@ -125,6 +125,17 @@ router.post('/businesses', auth, authorize('platform_owner'), async (req, res) =
     try {
         await client.query('BEGIN');
 
+        const permissionsResult = await client.query('SELECT id, name FROM permissions');
+        const permissionMap = new Map(permissionsResult.rows.map(p => [p.name, p.id]));
+        console.log(`Loaded ${permissionMap.size} permissions.`);
+
+        // Define permissions for default roles
+        const adminPermissions = Array.from(permissionMap.keys()); // All permissions
+        const agentPermissions = ['device:read', 'loan:read', 'loan:create', 'payment:read', 'payment:create:manual', 'user:manage'];
+        const superAgentPermissions = ['device:read', 'loan:read', 'loan:create', 'payment:read', 'payment:create:manual', 'user:manage'];
+
+    
+
         // Step 1: Check if user already exists globally
         const existingUser = await client.query('SELECT id FROM ray_users WHERE username = $1 OR email = $2', [username, email]);
         if (existingUser.rows.length > 0) {
@@ -151,8 +162,42 @@ router.post('/businesses', auth, authorize('platform_owner'), async (req, res) =
         );
         const newBusinessId = newBusinessResult.rows[0].id;
 
+        // Create default roles for the business
+        const adminRole = await client.query('INSERT INTO roles (business_id, name, description, is_default) VALUES ($1, $2, $3, $4) ON CONFLICT (business_id, name) DO NOTHING RETURNING id', [newBusinessId, 'Business Admin', 'Full access within the business', true]);
+        const agentRole = await client.query('INSERT INTO roles (business_id, name, description, is_default) VALUES ($1, $2, $3, $4) ON CONFLICT (business_id, name) DO NOTHING RETURNING id', [newBusinessId, 'Agent', 'Standard agent access', true]);
+        const customerRole = await client.query('INSERT INTO roles (business_id, name, description, is_default) VALUES ($1, $2, $3, $4) ON CONFLICT (business_id, name) DO NOTHING RETURNING id', [newBusinessId, 'Customer', 'Standard customer access', true]);
+        const superAgentRole = await client.query('INSERT INTO roles (business_id, name, description, is_default) VALUES ($1, $2, $3, $4) ON CONFLICT (business_id, name) DO NOTHING RETURNING id', [newBusinessId, 'Super Agent', 'Standard agent access', true]);
+
+
+        const adminRoleId = adminRole.rows[0]?.id;
+        const agentRoleId = agentRole.rows[0]?.id;
+        const customerRoleId = customerRole.rows[0]?.id;
+        const superAgentRoleId = superAgentRole.rows[0]?.id;
+
+
+        if (!adminRoleId || !agentRoleId || !customerRoleId || !superAgentRoleId) {
+            console.log(`Roles already existed for business ${business_id}, skipping permission assignment.`);
+        } else {
+             // Assign permissions to Business Admin role
+            for (const permName of adminPermissions) {
+                const permId = permissionMap.get(permName);
+                await client.query('INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [adminRoleId, permId]);
+            }
+
+            // Assign permissions to Agent role
+            for (const permName of agentPermissions) {
+                const permId = permissionMap.get(permName);
+                await client.query('INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [agentRoleId, permId]);
+            }
+            for (const permName of superAgentPermissions) {
+                const permId = permissionMap.get(permName);
+                await client.query('INSERT INTO role_permissions (role_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [superAgentRoleId, permId]);
+            }
+        }
+
+
         // Step 4: Assign the business to the new user
-        await client.query('UPDATE ray_users SET business_id = $1 WHERE id = $2', [newBusinessId, newOwnerId]);
+        await client.query('UPDATE ray_users SET business_id = $1, role_id = $3 WHERE id = $2', [newBusinessId, newOwnerId, adminRoleId]);
 
         await client.query('COMMIT');
 

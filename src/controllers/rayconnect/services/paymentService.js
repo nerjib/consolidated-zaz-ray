@@ -48,16 +48,17 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                 }
                 token = bioliteResponse.codeStr;
                 console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
-            } else if (manufacturer === 'beebeejump') {
+            } else if (manufacturer === 'beebeejumpo') {
                 const beebeeResponse = await getActivationCode(serialNum, `${tokenExpirationDays}Days`);
                 if (beebeeResponse && beebeeResponse.data && beebeeResponse.data.activationCode) {
                     token = beebeeResponse.data.activationCode;
-                    console.log(`Generated BeeBeeJump code for device ${serialNum}: ${token}`);
+                    console.log(`Generated BeeBeeJump code for device ${serialNum} ${tokenExpirationDays} days: ${token}`);
                 } else {
                     throw new Error(`BeeBeeJump service did not return a valid activation code for SN ${serialNum}.`);
                 }
             } else {
-                throw new Error(`Token generation for unsupported manufacturer: '${manufacturer}'`);
+              token = Math.floor(100000 + Math.random() * 900000).toString();
+                // throw new Error(`Token generation for unsupported manufacturer: '${manufacturer}'`);
             }
         } else if (loanId) {
             throw new Error(`Could not find serial number for device associated with loan ${loanId}. Cannot generate token.`);
@@ -79,7 +80,7 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
     if (userContact && credentials.africastalking_api_key) {
       const message = `Your PayGo activation code is: ${token}. Amount paid: ${amount}. Valid for ${tokenExpirationDays} days.`;
       await sendSMS(userContact, message, credentials);
-      console.log(`Activation code ${token} sent to user ${userId} via SMS.`);
+      console.log(`Activation code ${token} sent to user ${userId} via SMS ${tokenExpirationDays}days.`);
     }
 
     const assignedDevices = await client.query(
@@ -94,6 +95,7 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
       if (agentResult.rows.length > 0) {
         const agent = agentResult.rows[0];
         let commissionRate = agent.commission_rate;
+        console.log({ commissionRate });
         if (!commissionRate || commissionRate == 0) {
             const generalRate = await client.query("SELECT setting_value FROM ray_settings WHERE setting_key = $1 AND business_id = $2", ['general_agent_commission_rate', business_id]);
             if(generalRate.rows.length > 0) commissionRate = parseFloat(generalRate.rows[0].setting_value);
@@ -102,7 +104,7 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
         if(commissionRate > 0) {
             const commissionAmount = (amount * commissionRate) / 100;
             const superAgentId = agent.super_agent_id;
-
+            // console.log({superAgentId, commissionAmount})
             if (superAgentId) {
                 const superAgentResult = await client.query('SELECT commission_rate FROM ray_users WHERE id = $1 AND business_id = $2', [superAgentId, business_id]);
                 if (superAgentResult.rows.length > 0) {
@@ -127,10 +129,13 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                     }
                 }
             } else {
+                const commm =
                 await client.query(
                   'INSERT INTO ray_commissions (agent_id, customer_id, payment_id, amount, commission_percentage, business_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
                   [agentId, userId, paymentId, commissionAmount, commissionRate, business_id]
                 );
+
+                console.log(`Recorded commission of ${commissionAmount} for agent ${agentId} on payment ${paymentId}`, commm.rows[0]);
             }
         }
       }
@@ -142,15 +147,23 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
         const loan = loansToUpdate.rows[0];
         const newAmountPaid = parseFloat(loan.amount_paid || 0) + parseFloat(amount);
         const newBalance = parseFloat(loan.balance) - parseFloat(amount);
+        console.log({loan});
         const newStatus = newBalance <= 0 ? 'completed' : 'active';
-        let newNextPaymentDate = new Date(loan.next_payment_date);
+        // let newNextPaymentDate = new Date(loan.next_payment_date);
+        let newNextPaymentDate = new Date();
+        if(!loan.next_payment_date || new Date(loan.next_payment_date) < new Date()) {
+          newNextPaymentDate = new Date();
+        } else {
+          newNextPaymentDate = new Date(loan.next_payment_date);
+        }
 
         if (newStatus === 'active') {
-            switch (loan.payment_frequency) {
-                case 'daily': newNextPaymentDate.setDate(newNextPaymentDate.getDate() + 1); break;
-                case 'weekly': newNextPaymentDate.setDate(newNextPaymentDate.getDate() + 7); break;
-                default: newNextPaymentDate.setMonth(newNextPaymentDate.getMonth() + 1); break;
-            }
+            // switch (loan.payment_frequency) {
+            //     case 'daily': newNextPaymentDate.setDate(newNextPaymentDate.getDate() + 1); break;
+            //     case 'weekly': newNextPaymentDate.setDate(newNextPaymentDate.getDate() + 7); break;
+            //     default: newNextPaymentDate.setMonth(newNextPaymentDate.getMonth() + 1); break;
+            // }
+            newNextPaymentDate.setDate(newNextPaymentDate.getDate() + tokenExpirationDays);
         }
 
         await client.query(

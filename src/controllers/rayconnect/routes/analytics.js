@@ -3,11 +3,12 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const authorize = require('../middleware/authorization');
 const { query } = require('../config/database');
+const can = require('../middleware/can');
 
 // @route   GET api/analytics/overview
 // @desc    Get overall platform performance analytics for the business (Admin only)
 // @access  Private (Admin)
-router.get('/overview', auth, authorize('admin'), async (req, res) => {
+router.get('/overview', auth, can('analytics:read:business'), async (req, res) => {
   const { business_id } = req.user;
   try {
     const totalPayments = await query('SELECT SUM(amount) FROM ray_payments WHERE status = $1 AND business_id = $2',['completed', business_id]);

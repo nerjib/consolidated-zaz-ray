@@ -897,12 +897,19 @@ Admin-specific operations for managing business resources.
 
 ### 14.1 Reprocess a Device
 
-Resets a device's status to 'available' and un-assigns it from any customer or agent, making it available for a new loan. This action will fail if the device is currently linked to an active loan.
+Resets a device's status to 'available' and un-assigns it from any customer or agent, making it available for a new loan. This action is logged for auditing purposes and requires a reason. It will fail if the device is currently linked to an active loan.
 
 - **Endpoint:** `PUT /api/admin/devices/:id/reprocess`
 - **Access:** Business Admin
 - **URL Parameters:**
   - `id`: The UUID of the device to reprocess.
+- **Request Body:**
+  ```json
+  {
+    "reason": "End of Loan",
+    "notes": "Device returned in good condition."
+  }
+  ```
 - **Success Response (200 OK):**
   ```json
   {
@@ -922,6 +929,11 @@ Resets a device's status to 'available' and un-assigns it from any customer or a
 - **Error Response (400 Bad Request):**
   ```json
   {
+    "msg": "A reason for reprocessing is required."
+  }
+  ```
+  ```json
+  {
     "msg": "Device cannot be reprocessed. It is still tied to an active loan.",
     "loan_id": "l1o2a3n4-e5x6-7890-1234-567890abcdef"
   }
@@ -931,5 +943,31 @@ Resets a device's status to 'available' and un-assigns it from any customer or a
   {
     "msg": "Device not found in your business."
   }
+  ```
+
+### 14.2 Get Device History
+
+Retrieves the full audit history for a specific device, showing all status changes and reprocessing events.
+
+- **Endpoint:** `GET /api/admin/devices/:id/history`
+- **Access:** Business Admin
+- **URL Parameters:**
+  - `id`: The UUID of the device.
+- **Success Response (200 OK):**
+  ```json
+  [
+    {
+      "id": "hist-uuid-1",
+      "device_id": "d1e2f3a4-b5c6-7890-1234-567890abcdef",
+      "business_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      "changed_by": "admin-user-uuid",
+      "changed_by_username": "admin_user",
+      "previous_status": "assigned",
+      "new_status": "available",
+      "reason": "End of Loan",
+      "notes": "Device returned in good condition.",
+      "created_at": "2025-09-01T14:00:00.000Z"
+    }
+  ]
   ```
 
