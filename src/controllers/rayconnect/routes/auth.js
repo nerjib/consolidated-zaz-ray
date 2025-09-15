@@ -55,6 +55,54 @@ router.post('/register', auth, can('user:manage'), async (req, res) => {
   }
 });
 
+// @route   POST api/auth/register-admin
+// @desc    Create a new  admin user within a business
+// @access  Private (user:manage)
+router.post('/register-admin', auth, can('user:manage'), async (req, res) => {
+  const { username, email, password, role_id, phone_number, state, city, address, landmark, gps, name } = req.body;
+  const { business_id } = req.user;
+
+  // const customerRole = await query('SELECT * FROM  roles WHERE  business_id = $1 AND name = $2', [business_id, role.toLowerCase() === 'customer' ? 'Customer': role.toLowerCase() === 'agent' ? 'Agent' : '']);
+  // const role_id = customerRole.rows.length > 0 ? customerRole.rows[0].id : null;
+  if (!business_id) {
+    return res.status(400).json({ msg: 'Admin user is not associated with a business.' });
+  }
+  if (!role_id) {
+      return res.status(400).json({ msg: 'A role_id is required to create a new user.' });
+  }
+
+  try {
+    // Check if user already exists in the business
+    let user = await query('SELECT * FROM ray_users WHERE (username = $1 OR email = $2) AND business_id = $3', [username, email, business_id]);
+    if (user.rows.length > 0) {
+      return res.status(400).json({ msg: 'User with this username or email already exists in this business.' });
+    }
+
+    // Verify the provided role_id belongs to the admin's business
+    const roleCheck = await query('SELECT id FROM roles WHERE id = $1 AND business_id = $2', [role_id, business_id]);
+    if (roleCheck.rows.length === 0) {
+        return res.status(400).json({ msg: 'Invalid role_id for this business.' });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Save user to database
+    const newUser = await query(
+      `INSERT INTO ray_users (username, email, password, role_id, phone_number, state, city, address, landmark, gps, name, business_id, role) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+       RETURNING id, username, email, role_id, business_id, role`,
+      [username, email, hashedPassword, role_id, phone_number, state, city, address, landmark, gps, name, business_id, 'admin']
+    );
+
+    res.json({ msg: 'User created successfully', user: newUser.rows[0] });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
 // Login User
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
@@ -112,7 +160,7 @@ router.post('/login', async (req, res) => {
         if (err) throw err;
         // Return user object without the password hash
         delete user.password;
-        res.json({ token, user: user });
+        res.json({ token, user: user, permissions});
       }
     );
   } catch (err) {

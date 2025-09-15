@@ -138,4 +138,19 @@ router.put('/:id/role', auth, can('user:manage'), async (req, res) => {
     }
 });
 
+// @route   GET api/users/admin
+// @desc    Get all admins for the business
+// @access  Private (Admin)
+router.get('/admin', auth, can('user:manage'), async (req, res) => {
+    const { business_id } = req.user;
+    console.log({ business_id });
+    try {
+        const roles = await query('SELECT ru.*, r.name as roleName FROM ray_users ru LEFT JOIN roles r on ru.role_id= r.id WHERE ru.business_id = $1 AND ru.role = $2 ORDER BY created_at', [business_id, 'admin']);
+        res.json(roles.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+  });
+
 module.exports = router;
