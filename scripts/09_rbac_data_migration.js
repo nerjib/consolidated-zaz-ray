@@ -1,6 +1,8 @@
 require('dotenv').config({ path: '../.env' });
 // const { Pool } = require('pg');
-const { pool } = require('../config/database');
+// const { pool } = require('../config/database');
+const { pool } = require('../src/controllers/rayconnect/config/database'); // Adjust path as needed
+
 //   const client = await pool.connect();
 
 // const pool = new Pool({
