@@ -7,7 +7,7 @@ const { query, pool } = require('../config/database');
 // @route   POST api/loans
 // @desc    Create a new loan for a customer within the business
 // @access  Private (loan:create)
-router.post('/', auth, can('loan:create'), async (req, res) => {
+router.post('/', auth, can('loan:create', ['super-agent']), async (req, res) => {
   console.log({bod: req.body})
   const { customer_id, device_id, term_months, customer_address, customer_geocode, down_payment = 0, guarantor_details, agent_id, payment_frequency = 'monthly' } = req.body;
   const { business_id, id: creatorId } = req.user;
