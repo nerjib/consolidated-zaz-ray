@@ -204,9 +204,9 @@ router.get('/customer/:customerId', auth, can('loan:read', ['super-agent', 'agen
 
   try {
     // Allow access if user is an admin or if they are the customer being queried
-    if (customerId !== requesterId && !permissions.includes('loan:read')) {
-      return res.status(403).json({ msg: 'Access denied: You can only view your own loans.' });
-    }
+    // if (customerId !== requesterId && !permissions.includes('loan:read')) {
+    //   return res.status(403).json({ msg: 'Access denied: You can only view your own loans.' });
+    // }
 
     const loans = await query(`
       SELECT
