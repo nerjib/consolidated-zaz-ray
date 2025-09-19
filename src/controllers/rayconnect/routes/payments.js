@@ -92,7 +92,7 @@ router.post('/manual', auth, can('payment:create:manual'), async (req, res) => {
 // @route   POST api/payments/agent-credit
 // @desc    Agent makes a payment using their credit balance
 // @access  Private (Agent, Super-Agent, Admin)
-router.post('/agent-credit', auth, can('payment:create:manual'), async (req, res) => {
+router.post('/agent-credit', auth, can('payment:create:manual', ['super-agent', 'agent']), async (req, res) => {
   const { user_id, amount, loan_id } = req.body;
   const { id: agentId, business_id } = req.user;
 
