@@ -36,9 +36,10 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
             }
         }
 
-        const deviceResult = await client.query('SELECT d.serial_number, dt.manufacturer FROM ray_devices d JOIN ray_device_types dt on d.device_type_id = dt.id WHERE d.id = $1 AND d.business_id = $2', [device_id, business_id]);
+        const deviceResult = await client.query('SELECT d.serial_number, d.non_tokenised, dt.manufacturer FROM ray_devices d JOIN ray_device_types dt on d.device_type_id = dt.id WHERE d.id = $1 AND d.business_id = $2', [device_id, business_id]);
         const serialNum = deviceResult.rows.length > 0 ? deviceResult.rows[0].serial_number : null;
         const manufacturer = deviceResult.rows.length > 0 ? deviceResult.rows[0].manufacturer : null;
+        const isNonTokenised = deviceResult.rows.length > 0 ? deviceResult.rows[0].non_tokenised : false;
 
         if (serialNum) {
             if (manufacturer === 'biolite' && credentials.biolite_private_key) {
@@ -48,7 +49,7 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                 }
                 token = bioliteResponse.codeStr;
                 console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
-            } else if (manufacturer === 'beebeejump') {
+            } else if (manufacturer === 'beebeejump' && !isNonTokenised) {
                 const beebeeResponse = await getActivationCode(serialNum, `${tokenExpirationDays}Days`);
                 if (beebeeResponse && beebeeResponse.data && beebeeResponse.data.activationCode) {
                     token = beebeeResponse.data.activationCode;
@@ -56,6 +57,10 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                 } else {
                     throw new Error(`BeeBeeJump service did not return a valid activation code for SN ${serialNum}.`);
                 }
+            } else if (manufacturer === 'beebeejump' && isNonTokenised) {
+                // For Ray devices, we generate a random 6-digit token
+                token = Math.floor(100000 + Math.random() * 900000).toString();
+                console.log(`Generated Ray device token: ${token}`);
             } else {
               // token = Math.floor(100000 + Math.random() * 900000).toString();
                 throw new Error(`Token generation for unsupported manufacturer: '${manufacturer}'`);

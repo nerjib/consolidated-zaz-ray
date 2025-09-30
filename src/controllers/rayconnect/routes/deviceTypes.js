@@ -9,7 +9,7 @@ const can = require('../middleware/can');
 // @desc    Add a new device type to the business
 // @access  Private (Admin only)
 router.post('/', auth, authorize('admin'), async (req, res) => {
-  const { device_name, manufacturer, device_model, pricing } = req.body;
+  const { device_name, manufacturer, device_model, pricing, category } = req.body;
   const { business_id } = req.user;
 
   try {
@@ -19,8 +19,8 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
     }
 
     const newDeviceType = await query(
-      'INSERT INTO ray_device_types (device_name, manufacturer, device_model, pricing, business_id) VALUES ($1, $2, $3, $4, $5) RETURNING *;',
-      [device_name, manufacturer, device_model, pricing, business_id]
+      'INSERT INTO ray_device_types (device_name, manufacturer, device_model, pricing, business_id, category) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;',
+      [device_name, manufacturer, device_model, pricing, business_id, category]
     );
     res.json({ msg: 'Device type added successfully', deviceType: newDeviceType.rows[0] });
   } catch (err) {

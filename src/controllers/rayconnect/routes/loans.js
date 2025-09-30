@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const can = require('../middleware/can');
 const { query, pool } = require('../config/database');
+const { handleSuccessfulPayment } = require('../services/paymentService');
 
 // @route   POST api/loans
 // @desc    Create a new loan for a customer within the business
@@ -60,41 +61,77 @@ router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req,
     await client.query('BEGIN');
 
     const loanAgentId = agent_id || creatorId;
+
+    if (down_payment > 0) {
+      const agentResult = await client.query('SELECT credit_balance FROM ray_users WHERE id = $1 AND business_id = $2 FOR UPDATE', [creatorId, business_id]);
+      if (agentResult.rows.length === 0) {
+        throw new Error('Loan creator (agent) not found.');
+      }
+      const agentCredit = agentResult.rows[0].credit_balance;
+      if (agentCredit < down_payment) {
+        throw new Error('Insufficient agent credit for down payment.');
+      }
+      await client.query('UPDATE ray_users SET credit_balance = credit_balance - $1 WHERE id = $2 AND business_id = $3', [down_payment, creatorId, business_id]);
+    }
+
     await client.query(
       'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND business_id = $5;',
       [customer_id, loanAgentId, 'assigned', device_id, business_id]
     );
 
-    const total_amount = selectedPrice - down_payment;
-    let payment_cycle_amount;
+    const financed_amount = selectedPrice - down_payment;
+    let payment_cycle_amount = 0;
     let next_payment_date = new Date();
-    switch (payment_frequency) {
-      case 'daily':
-        payment_cycle_amount = total_amount / (term_months * 30);
-        next_payment_date.setDate(next_payment_date.getDate() + 1);
-        break;
-      case 'weekly':
-        payment_cycle_amount = total_amount / (term_months * 4);
-        next_payment_date.setDate(next_payment_date.getDate() + 7);
-        break;
-      default: // monthly
-        payment_cycle_amount = total_amount / term_months;
-        next_payment_date.setMonth(next_payment_date.getMonth() + 1);
-        break;
+    if (term_months > 0) {
+        switch (payment_frequency) {
+          case 'daily':
+            payment_cycle_amount = financed_amount / (term_months * 30);
+            next_payment_date.setDate(next_payment_date.getDate() + 1);
+            break;
+          case 'weekly':
+            payment_cycle_amount = financed_amount / (term_months * 4);
+            next_payment_date.setDate(next_payment_date.getDate() + 7);
+            break;
+          default: // monthly
+            payment_cycle_amount = financed_amount / term_months;
+            next_payment_date.setMonth(next_payment_date.getMonth() + 1);
+            break;
+        }
     }
 
-    const newLoan = await client.query(
+    const newLoanResult = await client.query(
       'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *;',
-      [customer_id, device_id, total_amount, down_payment, total_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, loanAgentId, 'active', payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address]
+      [customer_id, device_id, financed_amount, 0, financed_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, loanAgentId, 'active', payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address]
     );
+    const newLoan = newLoanResult.rows[0];
+
+    if (down_payment > 0) {
+      const transaction_id = `DP-${Date.now()}-${newLoan.id}`;
+      const paymentResult = await client.query(
+        'INSERT INTO ray_payments (loan_id, user_id, amount, payment_method, status, business_id, transaction_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, (SELECT credit_balance FROM ray_users WHERE id = $8)',
+        [newLoan.id, customer_id, down_payment, 'agent-credit', 'completed', business_id, transaction_id, creatorId]
+      );
+      const newPaymentId = paymentResult.rows[0].id;
+      const agentNewBalance = paymentResult.rows[0].credit_balance;
+
+      await client.query(
+        'INSERT INTO ray_credit_transactions (user_id, transaction_type, amount, new_balance, reference_id, description, created_by, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [creatorId, 'down_payment', down_payment, agentNewBalance, newPaymentId, `Down payment for loan ${newLoan.id}`, creatorId, business_id]
+      );
+
+      await handleSuccessfulPayment(client, customer_id, down_payment, newPaymentId, newLoan.id, business_id);
+    }
 
     await client.query('COMMIT');
-    res.json({ msg: 'Loan created successfully', loan: newLoan.rows[0] });
+    res.json({ msg: 'Loan created successfully', loan: newLoan });
   } catch (err) {
     if (client) {
       await client.query('ROLLBACK');
     }
     console.error(err.message);
+    if (err.message === 'Insufficient agent credit for down payment.') {
+        return res.status(400).json({ msg: err.message });
+    }
     res.status(500).send('Server Error');
   } finally {
     if (client) {
@@ -304,6 +341,111 @@ router.put('/:id/approve', auth, can('loan:approve'), async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT api/loans/:id/pause
+// @desc    Pause a loan
+// @access  Private (loan:update)
+router.put('/:id/pause', auth, can('loan:update'), async (req, res) => {
+  const { id } = req.params;
+  const { business_id } = req.user;
+  let client;
+
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    const loanResult = await client.query('SELECT id, status, device_id FROM ray_loans WHERE id = $1 AND business_id = $2 FOR UPDATE', [id, business_id]);
+    if (loanResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ msg: 'Loan not found in your business.' });
+    }
+    const loan = loanResult.rows[0];
+
+    if (loan.status !== 'active') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ msg: `Loan is not active. Current status: ${loan.status}` });
+    }
+
+    await client.query(
+      'UPDATE ray_loans SET status = $1, paused_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3;',
+      ['paused', id, business_id]
+    );
+
+    await client.query(
+      'UPDATE ray_devices SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3;',
+      ['faulty', loan.device_id, business_id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ msg: 'Loan paused successfully' });
+  } catch (err) {
+    if (client) {
+      await client.query('ROLLBACK');
+    }
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+});
+
+// @route   PUT api/loans/:id/resume
+// @desc    Resume a loan
+// @access  Private (loan:update)
+router.put('/:id/resume', auth, can('loan:update'), async (req, res) => {
+  const { id } = req.params;
+  const { business_id } = req.user;
+  let client;
+
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    const loanResult = await client.query('SELECT id, status, device_id, paused_at, next_payment_date FROM ray_loans WHERE id = $1 AND business_id = $2 FOR UPDATE', [id, business_id]);
+    if (loanResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ msg: 'Loan not found in your business.' });
+    }
+    const loan = loanResult.rows[0];
+
+    if (loan.status !== 'paused') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ msg: `Loan is not paused. Current status: ${loan.status}` });
+    }
+
+    const pausedAt = new Date(loan.paused_at);
+    const now = new Date();
+    const pausedDuration = now.getTime() - pausedAt.getTime();
+
+    const nextPaymentDate = new Date(loan.next_payment_date);
+    const newNextPaymentDate = new Date(nextPaymentDate.getTime() + pausedDuration);
+
+    await client.query(
+      'UPDATE ray_loans SET status = $1, resumed_at = CURRENT_TIMESTAMP, next_payment_date = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND business_id = $4;',
+      ['active', newNextPaymentDate, id, business_id]
+    );
+
+    await client.query(
+      'UPDATE ray_devices SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3;',
+      ['assigned', loan.device_id, business_id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ msg: 'Loan resumed successfully' });
+  } catch (err) {
+    if (client) {
+      await client.query('ROLLBACK');
+    }
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  } finally {
+    if (client) {
+      client.release();
+    }
   }
 });
 

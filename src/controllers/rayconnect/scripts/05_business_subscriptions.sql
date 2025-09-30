@@ -17,3 +17,6 @@ CREATE INDEX IF NOT EXISTS idx_businesses_subscription_plan ON businesses(subscr
 CREATE INDEX IF NOT EXISTS idx_businesses_subscription_status ON businesses(subscription_status);
 
 ALTER TABLE b2b_api_tokens ADD COLUMN IF NOT EXISTS token VARCHAR(250); -- token
+
+ALTER TABLE ray_device_types ADD COLUMN IF NOT EXISTS category VARCHAR(250); -- category
+ALTER TABLE ray_devices ADD COLUMN IF NOT EXISTS non_tokenised BOOLEAN DEFAULT false;

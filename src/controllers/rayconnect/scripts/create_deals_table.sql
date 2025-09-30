@@ -15,7 +15,7 @@ CREATE OR REPLACE FUNCTION update_updated_at_column_deals()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
-  RETURN NEW;n 
+  RETURN NEW;
 END;
 $$ language 'plpgsql';
 

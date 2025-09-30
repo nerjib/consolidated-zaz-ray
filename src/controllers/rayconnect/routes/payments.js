@@ -147,8 +147,9 @@ router.post('/agent-credit', auth, can('payment:create:manual', ['super-agent', 
 
     const newAccumulatedPayment = parseFloat(loan.current_cycle_accumulated_payment) + amount;
     if (newAccumulatedPayment >= loan.payment_cycle_amount) {
-      const excessAmount = newAccumulatedPayment - loan.payment_cycle_amount;
-      await handleSuccessfulPayment(client, user_id, loan.payment_cycle_amount, newPayment.rows[0].id, loan_id, business_id);
+      const highestMultiple = Math.floor(newAccumulatedPayment / loan.payment_cycle_amount) * loan.payment_cycle_amount;
+      const excessAmount = newAccumulatedPayment - highestMultiple;
+      await handleSuccessfulPayment(client, user_id, highestMultiple, newPayment.rows[0].id, loan_id, business_id);
       await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
       res.json({ msg: 'Payment made successfully using agent credit. Full cycle payment processed.', payment: newPayment.rows[0], newCreditBalance, excessAmount: excessAmount ?? 0});
     } else {
@@ -264,8 +265,9 @@ router.post('/paystack/webhook', async (req, res) => {
       const newAccumulatedPayment = parseFloat(loan.current_cycle_accumulated_payment) + (amount / 100);
 
       if (newAccumulatedPayment >= loan.payment_cycle_amount) {
-        const excessAmount = newAccumulatedPayment - loan.payment_cycle_amount;
-        await handleSuccessfulPayment(client, user_id, loan.payment_cycle_amount, newPayment.rows[0].id, loan_id, business_id);
+        const highestMultiple = Math.floor(newAccumulatedPayment / loan.payment_cycle_amount) * loan.payment_cycle_amount;
+        const excessAmount = newAccumulatedPayment - highestMultiple;
+        await handleSuccessfulPayment(client, user_id, highestMultiple, newPayment.rows[0].id, loan_id, business_id);
         await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
       } else {
         await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [newAccumulatedPayment, loan_id]);
