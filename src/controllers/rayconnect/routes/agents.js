@@ -9,8 +9,9 @@ const { query, pool } = require('../config/database');
 // @access  Private (agent:read)
 router.get('/', auth, can('agent:read'), async (req, res) => {
   const { business_id } = req.user;
+  const { status } = req.query;
   try {
-    const agents = await query(`
+    let queryText = `
       SELECT 
         u.id, 
         u.username AS name, 
@@ -29,7 +30,14 @@ router.get('/', auth, can('agent:read'), async (req, res) => {
         u.last_active
       FROM ray_users u
       WHERE u.role = 'agent' AND u.business_id = $1
-    `, [business_id]);
+    `;
+    const queryParams = [business_id];
+    if (status) {
+      queryText += ` AND u.status = $2`;
+      queryParams.push(status);
+    }
+    queryText += ' ORDER BY u.created_at DESC';
+    const agents = await query(queryText, queryParams);
     res.json(agents.rows);
   } catch (err) {
     console.error(err.message);

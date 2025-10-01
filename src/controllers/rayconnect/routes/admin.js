@@ -482,4 +482,52 @@ router.get('/devices/:id/history', auth, can('device:read'), async (req, res) =>
     }
 });
 
+
+// @route   PUT api/admin/agents/:id/approval
+// @desc    Approve or reject an agent's registration request
+// @access  Private (user:manage)
+router.put('/agents/:id/approval', auth, can('user:manage'), async (req, res) => {
+  const { id } = req.params;
+  const { status, reason } = req.body; // status: 'active' or 'rejected'
+  const { business_id } = req.user;
+
+  if (!status || !['active', 'rejected'].includes(status)) {
+    return res.status(400).json({ msg: "Invalid status. Must be 'active' or 'rejected'." });
+  }
+
+  if (status === 'rejected' && !reason) {
+    return res.status(400).json({ msg: 'A reason is required for rejection.' });
+  }
+
+  try {
+    const agent = await query("SELECT id, status FROM ray_users WHERE id = $1 AND role = 'agent' AND business_id = $2", [id, business_id]);
+    if (agent.rows.length === 0) {
+      return res.status(404).json({ msg: 'Agent not found in your business.' });
+    }
+
+    if (agent.rows[0].status !== 'pending') {
+      return res.status(400).json({ msg: `Agent is not pending approval. Current status: ${agent.rows[0].status}` });
+    }
+
+    let updatedAgent;
+    if (status === 'rejected') {
+      updatedAgent = await query(
+        'UPDATE ray_users SET status = $1, rejection_reason = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND business_id = $4 RETURNING id, username, email, role, status, rejection_reason;',
+        [status, reason, id, business_id]
+      );
+    } else { // 'active'
+      updatedAgent = await query(
+        'UPDATE ray_users SET status = $1, rejection_reason = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING id, username, email, role, status;',
+        [status, id, business_id]
+      );
+    }
+
+    res.json({ msg: `Agent request ${status}.`, agent: updatedAgent.rows[0] });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;

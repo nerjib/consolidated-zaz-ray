@@ -122,7 +122,9 @@ router.post('/login', async (req, res) => {
             return res.status(403).json({ msg: 'Business subscription is not active. Please contact support.' });
         }
     }
-
+    if (user.role === 'agent' && user.status !== 'active') {
+          return res.status(403).json({ msg: 'Account is not active. Please contact support.' });
+  }
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {

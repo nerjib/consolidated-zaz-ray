@@ -971,3 +971,46 @@ Retrieves the full audit history for a specific device, showing all status chang
   ]
   ```
 
+### 14.3 Approve or Reject Agent Request
+- **Endpoint:** `PUT /api/admin/agents/:id/approval`
+- **Access:** Business Admin
+- **URL Parameters:**
+  - `id`: The UUID of the agent to approve or reject.
+- **Request Body:**
+  ```json
+  {
+    "status": "active", 
+    "reason": "Optional reason for rejection"
+  }
+  ```
+- **Success Response (200 OK):**
+  ```json
+  {
+    "msg": "Agent request active.",
+    "agent": {
+      "id": "...",
+      "username": "new_agent_user",
+      "email": "agent@example.com",
+      "role": "agent",
+      "status": "active"
+    }
+  }
+  ```
+- **Error Response (400 Bad Request):**
+  ```json
+  {
+    "msg": "Invalid status. Must be 'active' or 'rejected'."
+  }
+  ```
+  ```json
+  {
+    "msg": "A reason is required for rejection."
+  }
+  ```
+- **Error Response (404 Not Found):**
+  ```json
+  {
+    "msg": "Agent not found in your business."
+  }
+  ```
+
