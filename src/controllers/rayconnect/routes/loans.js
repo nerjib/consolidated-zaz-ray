@@ -42,6 +42,7 @@ router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req,
     let selectedPrice;
     if (term_months === 0) selectedPrice = pricing['one-time'];
     else if (term_months === 12) selectedPrice = pricing['12-month'];
+    else if (term_months === 18) selectedPrice = pricing['18-month'];
     else if (term_months === 24) selectedPrice = pricing['24-month'];
     else return res.status(400).json({ msg: 'Invalid term_months. Must be 0, 12, or 24.' });
 
