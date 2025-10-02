@@ -150,6 +150,7 @@ router.get('/devices', auth, async (req, res) => {
         d.status,
         d.assigned_by As "assignedBy",
         dt.device_name AS type,
+        dt.default_down_payment AS downPayment,
         dt.device_model AS model,
         dt.pricing->>'one-time' AS price,
         dt.pricing AS plan,

@@ -33,15 +33,26 @@ router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req,
       return res.status(400).json({ msg: 'Device is not available for assignment. Current status: ' + device.status });
     }
 
-    const deviceTypeResult = await query('SELECT pricing FROM ray_device_types WHERE id = $1 AND business_id = $2', [device.device_type_id, business_id]);
+    const deviceTypeResult = await query('SELECT pricing, default_down_payment FROM ray_device_types WHERE id = $1 AND business_id = $2', [device.device_type_id, business_id]);
     if (deviceTypeResult.rows.length === 0) {
       return res.status(404).json({ msg: 'Device type not found for this device in your business.' });
     }
 
-    const pricing = deviceTypeResult.rows[0].pricing;
+    const deviceType = deviceTypeResult.rows[0];
+    const pricing = deviceType.pricing;
+    const default_down_payment = deviceType.default_down_payment;
+
+    if (down_payment !== undefined && down_payment !== null) {
+        if (parseFloat(down_payment) !== parseFloat(default_down_payment)) {
+            return res.status(400).json({ msg: `The provided down payment (${down_payment}) does not match the required down payment (${default_down_payment}) for this device type.` });
+        }
+    } else {
+        down_payment = default_down_payment || 0;
+    }
     let selectedPrice;
     if (term_months === 0) selectedPrice = pricing['one-time'];
     else if (term_months === 12) selectedPrice = pricing['12-month'];
+    else if (term_months === 16) selectedPrice = pricing['16-month'];
     else if (term_months === 18) selectedPrice = pricing['18-month'];
     else if (term_months === 24) selectedPrice = pricing['24-month'];
     else return res.status(400).json({ msg: 'Invalid term_months. Must be 0, 12, or 24.' });
@@ -120,7 +131,7 @@ router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req,
         [creatorId, 'down_payment', down_payment, agentNewBalance, newPaymentId, `Down payment for loan ${newLoan.id}`, creatorId, business_id]
       );
 
-      await handleSuccessfulPayment(client, customer_id, down_payment, newPaymentId, newLoan.id, business_id);
+      await handleSuccessfulPayment(client, customer_id, down_payment, newPaymentId, newLoan.id, business_id, true);
     }
 
     await client.query('COMMIT');

@@ -436,7 +436,9 @@ Adds a new type of device to the business's portfolio.
       "one-time": 50000,
       "12-month": 60000,
       "24-month": 75000
-    }
+    },
+    "default_down_payment": 5000,
+    "token_validity_days": 30
   }
   ```
 
@@ -598,6 +600,7 @@ Creates a new loan for a customer, linking them to a specific device. This actio
     }
   }
   ```
+- **Note:** The `down_payment` must match the `default_down_payment` of the device type. If not provided, the `default_down_payment` will be used.
 
 ### 10.2 List All Loans
 

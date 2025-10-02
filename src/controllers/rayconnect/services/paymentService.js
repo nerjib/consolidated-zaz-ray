@@ -4,7 +4,7 @@ const { generateBioliteCode } = require('./bioliteService');
 const { getActivationCode } = require('./beebeeService');
 const { getBusinessCredentials } = require('./utils');
 
-const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId = null, business_id) => {
+const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId = null, business_id, isInitialPayment = false) => {
   try {
     const credentials = await getBusinessCredentials(business_id);
     if (!credentials) {
@@ -15,24 +15,28 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
     let tokenExpirationDays = 30;
 
     if (loanId) {
-      const loanResult = await client.query('SELECT payment_amount_per_cycle, device_id, payment_frequency, payment_cycle_amount FROM ray_loans WHERE id = $1 AND business_id = $2', [loanId, business_id]);
+      const loanResult = await client.query('SELECT l.payment_amount_per_cycle, l.device_id, l.payment_frequency, l.payment_cycle_amount, dt.token_validity_days FROM ray_loans l JOIN ray_devices d ON l.device_id = d.id JOIN ray_device_types dt ON d.device_type_id = dt.id WHERE l.id = $1 AND l.business_id = $2', [loanId, business_id]);
       if (loanResult.rows.length > 0) {
-        const { device_id, payment_frequency, payment_cycle_amount } = loanResult.rows[0];
+        const { device_id, payment_frequency, payment_cycle_amount, token_validity_days } = loanResult.rows[0];
 
-        if (amount >= payment_cycle_amount) {
-            const extraAmount = amount - payment_cycle_amount;
-            let days_in_cycle;
-            switch (payment_frequency) {
-              case 'daily': days_in_cycle = 1; break;
-              case 'weekly': days_in_cycle = 7; break;
-              default: days_in_cycle = 30; break;
-            }
-            tokenExpirationDays = Math.floor(days_in_cycle + (extraAmount / payment_cycle_amount) * days_in_cycle);
+        if (isInitialPayment && token_validity_days) {
+            tokenExpirationDays = token_validity_days;
         } else {
-            switch (payment_frequency) {
-              case 'daily': tokenExpirationDays = 1; break;
-              case 'weekly': tokenExpirationDays = 7; break;
-              default: tokenExpirationDays = 30; break;
+            if (amount >= payment_cycle_amount && payment_cycle_amount > 0) {
+                const extraAmount = amount - payment_cycle_amount;
+                let days_in_cycle;
+                switch (payment_frequency) {
+                  case 'daily': days_in_cycle = 1; break;
+                  case 'weekly': days_in_cycle = 7; break;
+                  default: days_in_cycle = 30; break;
+                }
+                tokenExpirationDays = Math.floor(days_in_cycle + (extraAmount / payment_cycle_amount) * days_in_cycle);
+            } else {
+                switch (payment_frequency) {
+                  case 'daily': tokenExpirationDays = 1; break;
+                  case 'weekly': tokenExpirationDays = 7; break;
+                  default: tokenExpirationDays = 30; break;
+                }
             }
         }
 
@@ -154,21 +158,23 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
         const newBalance = parseFloat(loan.balance) - parseFloat(amount);
         console.log({loan});
         const newStatus = newBalance <= 0 ? 'completed' : 'active';
-        // let newNextPaymentDate = new Date(loan.next_payment_date);
-        let newNextPaymentDate = new Date();
-        if(!loan.next_payment_date || new Date(loan.next_payment_date) < new Date()) {
-          newNextPaymentDate = new Date();
+        
+        let newNextPaymentDate;
+
+        if (isInitialPayment) {
+            newNextPaymentDate = new Date();
         } else {
-          newNextPaymentDate = new Date(loan.next_payment_date);
+            if(!loan.next_payment_date || new Date(loan.next_payment_date) < new Date()) {
+              newNextPaymentDate = new Date();
+            } else {
+              newNextPaymentDate = new Date(loan.next_payment_date);
+            }
         }
 
         if (newStatus === 'active') {
-            // switch (loan.payment_frequency) {
-            //     case 'daily': newNextPaymentDate.setDate(newNextPaymentDate.getDate() + 1); break;
-            //     case 'weekly': newNextPaymentDate.setDate(newNextPaymentDate.getDate() + 7); break;
-            //     default: newNextPaymentDate.setMonth(newNextPaymentDate.getMonth() + 1); break;
-            // }
             newNextPaymentDate.setDate(newNextPaymentDate.getDate() + tokenExpirationDays);
+        } else {
+            newNextPaymentDate = null;
         }
 
         await client.query(

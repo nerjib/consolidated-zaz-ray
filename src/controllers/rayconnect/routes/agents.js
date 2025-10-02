@@ -207,6 +207,7 @@ router.get('/available-devices', auth, async (req, res) => {
         dt.device_model AS model,
         dt.pricing->>'one-time' AS price,
         dt.pricing AS plan,
+        dt.default_down_payment AS downPayment,
         COALESCE(json_agg(DISTINCT deal.allowed_payment_frequencies) FILTER (WHERE deal.id IS NOT NULL), '["monthly", "weekly", "daily"]'::json) AS "allowedPaymentFrequencies",
         json_agg(json_build_object(
           'id', deal.id,
