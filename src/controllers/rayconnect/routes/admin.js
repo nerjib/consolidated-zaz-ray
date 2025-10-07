@@ -12,6 +12,7 @@ router.post('/create-agent', auth, can('user:manage', ['super-agent']), async (r
   const { username, role, email, password, phone_number, state, city, address, landmark, gps, name } = req.body;
   console.log({role});
   const { id: creatorId, business_id, role: creatorRole } = req.user;
+  console.log({business_id, creatorRole});
   const customerRole = await query('SELECT * FROM  roles WHERE  business_id = $1 AND name = $2', [business_id, 'Agent']);
   const role_id = customerRole.rows.length > 0 ? customerRole.rows[0].id : null;
   if (!business_id) {
