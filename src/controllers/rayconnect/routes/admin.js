@@ -8,7 +8,7 @@ const { query } = require('../config/database');
 // @route   POST api/admin/create-agent
 // @desc    Create a new agent for the business
 // @access  Private (user:manage)
-router.post('/create-agent', auth, can('user:manage'), async (req, res) => {
+router.post('/create-agent', auth, can('user:manage', ['super-agent']), async (req, res) => {
   const { username, role, email, password, phone_number, state, city, address, landmark, gps, name } = req.body;
   console.log({role});
   const { id: creatorId, business_id, role: creatorRole } = req.user;

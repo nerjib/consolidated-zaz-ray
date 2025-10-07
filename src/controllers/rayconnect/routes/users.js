@@ -8,7 +8,7 @@ const { query } = require('../config/database');
 // @route   POST api/users/create-customer
 // @desc    Create a new customer within the business
 // @access  Private (user:manage)
-router.post('/create-customer', auth, can('user:manage'), async (req, res) => {
+router.post('/create-customer', auth, can('user:manage', ['super-agent', 'agent']), async (req, res) => {
   const { username, email, password, phone_number, state, city, address, landmark, name, id_number } = req.body;
   const creator = req.user;
   const { business_id } = creator;
