@@ -57,7 +57,7 @@ async function getActivationCode(sn, day) {
         'Content-Type': 'application/json'
       }
     });
-    // console.log({response})
+    console.log({response}, '>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<')
     const { returnCode, returnMessage, data } = response.data;
 
     if (returnCode === 0 && data && data.encrypt) {
