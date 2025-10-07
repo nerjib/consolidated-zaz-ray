@@ -2,6 +2,7 @@ const { query } = require('../config/database');
 const { sendSMS } = require('./smsService');
 const { generateBioliteCode } = require('./bioliteService');
 const { getActivationCode } = require('./beebeeService');
+const { generateToken, TokenType } = require('./openPayGoService');
 const { getBusinessCredentials } = require('./utils');
 
 const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId = null, business_id, isInitialPayment = false) => {
@@ -40,11 +41,12 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
             }
         }
 
-        const deviceResult = await client.query('SELECT d.serial_number, d.non_tokenised, dt.manufacturer FROM ray_devices d JOIN ray_device_types dt on d.device_type_id = dt.id WHERE d.id = $1 AND d.business_id = $2', [device_id, business_id]);
+        const deviceResult = await client.query('SELECT d.serial_number, d.non_tokenised, dt.manufacturer, d.openpaygo_secret_key, d.openpaygo_token_count FROM ray_devices d JOIN ray_device_types dt on d.device_type_id = dt.id WHERE d.id = $1 AND d.business_id = $2', [device_id, business_id]);
         const serialNum = deviceResult.rows.length > 0 ? deviceResult.rows[0].serial_number : null;
         const manufacturer = deviceResult.rows.length > 0 ? deviceResult.rows[0].manufacturer : null;
         const isNonTokenised = deviceResult.rows.length > 0 ? deviceResult.rows[0].non_tokenised : false;
-
+        const openpaygo_secret_key = deviceResult.rows.length > 0 ? deviceResult.rows[0].openpaygo_secret_key : null;
+        const openpaygo_token_count = deviceResult.rows.length > 0 ? deviceResult.rows[0].openpaygo_token_count : 0;
         if (serialNum) {
             if (manufacturer === 'biolite' && credentials.biolite_private_key) {
                 const bioliteResponse = await generateBioliteCode(serialNum, 'add_time', tokenExpirationDays, credentials);
@@ -61,6 +63,16 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                 } else {
                     throw new Error(`BeeBeeJump service did not return a valid activation code for SN ${serialNum}.`);
                 }
+            } else if (manufacturer === 'solarun') {
+                if (!openpaygo_secret_key) {
+                    throw new Error(`OpenPAYGO device ${serialNum} does not have a secret key.`);
+                }
+                console.log({openpaygo_secret_key, tokenExpirationDays, openpaygo_token_count});
+                const { updatedCount, token: generatedToken } = generateToken(openpaygo_secret_key, tokenExpirationDays, openpaygo_token_count, TokenType.COUNTER_SYNC);
+                token = generatedToken;
+                console.log(`Generated OpenPAYGO code for device ${serialNum}: ${token}`);
+                // Update token count
+                await client.query('UPDATE ray_devices SET openpaygo_token_count = $1 WHERE id = $2', [updatedCount, device_id]);
             } else if (manufacturer === 'beebeejump' && isNonTokenised) {
                 // For Ray devices, we generate a random 6-digit token
                 token = Math.floor(100000 + Math.random() * 900000).toString();

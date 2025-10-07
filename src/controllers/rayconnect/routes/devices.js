@@ -30,7 +30,7 @@ const upload = multer({
 // @desc    Add a new device to the business
 // @access  Private (device:create)
 router.post('/', auth, can('device:create'), async (req, res) => {
-  const { serial_number, device_type_id } = req.body;
+  const { serial_number, device_type_id, paygo_key } = req.body;
   const { business_id } = req.user;
 
   try {
@@ -48,8 +48,8 @@ router.post('/', auth, can('device:create'), async (req, res) => {
     }
 
     const newDevice = await query(
-      'INSERT INTO ray_devices (serial_number, model, price, device_type_id, status, business_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;',
-      [serial_number, device_model, oneTimePrice, device_type_id, 'available', business_id]
+      'INSERT INTO ray_devices (serial_number, model, price, device_type_id, status, business_id, openpaygo_secret_key) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;',
+      [serial_number, device_model, oneTimePrice, device_type_id, 'available', business_id, paygo_key || null]
     );
     res.json({ msg: 'Device added successfully', device: newDevice.rows[0] });
   } catch (err) {
@@ -149,7 +149,7 @@ router.post('/upload-excel', auth, can('device:create'), upload.single('excelFil
     const errors = [];
 
     for (const row of data) {
-      const { serial_number, device_type_id } = row;
+      const { serial_number, device_type_id, paygo_key } = row;
 
       if (!serial_number || !device_type_id) {
         errorCount++;
@@ -176,8 +176,8 @@ router.post('/upload-excel', auth, can('device:create'), upload.single('excelFil
         }
 
         await query(
-          'INSERT INTO ray_devices (serial_number, model, price, device_type_id, status, business_id) VALUES ($1, $2, $3, $4, $5, $6)',
-          [serial_number, device_model, oneTimePrice, device_type_id, 'available', business_id]
+          'INSERT INTO ray_devices (serial_number, model, price, device_type_id, status, business_id, openpaygo_secret_key) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [serial_number, device_model, oneTimePrice, device_type_id, 'available', business_id, paygo_key || null]
         );
         successCount++;
       } catch (dbErr) {

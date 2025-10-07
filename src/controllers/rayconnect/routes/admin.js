@@ -319,12 +319,12 @@ router.get('/credit-transactions', auth, can('agent:read'), async (req, res) => 
 
         if (user_id) {
             queryParams.push(user_id);
-            queryText += ` AND ct.user_id = $${queryParams.length}`;
+            queryText += ` AND ct.user_id = ${queryParams.length}`;
         }
 
         if (transaction_type) {
             queryParams.push(transaction_type);
-            queryText += ` AND ct.transaction_type = $${queryParams.length}`;
+            queryText += ` AND ct.transaction_type = ${queryParams.length}`;
         }
 
         queryText += ' ORDER BY ct.created_at DESC';
@@ -528,6 +528,93 @@ router.put('/agents/:id/approval', auth, can('user:manage'), async (req, res) =>
     console.error(err.message);
     res.status(500).send('Server Error');
   }
+});
+
+// @route   POST api/admin/assign-device-to-agent
+// @desc    Assign devices to an agent within the business
+// @access  Private (device:update)
+router.post('/assign-device-to-agent', auth, can('device:update'), async (req, res) => {
+  const { deviceIds, agentId } = req.body;
+  const { business_id } = req.user;
+
+  try {
+    if (!deviceIds || !Array.isArray(deviceIds) || deviceIds.length === 0 || !agentId) {
+      return res.status(400).json({ msg: 'Device IDs (array) and Agent ID are required.' });
+    }
+
+    // Check if agent exists
+    const agent = await query(`SELECT id FROM ray_users WHERE id = $1 AND role = 'agent' AND business_id = $2`, [agentId, business_id]);
+    if (agent.rows.length === 0) {
+      return res.status(404).json({ msg: 'Agent not found in your business.' });
+    }
+
+    // Check if devices are available
+    const devices = await query('SELECT id FROM ray_devices WHERE id = ANY($1::uuid[]) AND status = $2 AND business_id = $3', [deviceIds, 'available', business_id]);
+    if (devices.rows.length !== deviceIds.length) {
+        return res.status(400).json({ msg: 'One or more devices are not available or do not belong to your business.' });
+    }
+
+    const updatedDevices = await query(
+      'UPDATE ray_devices SET assigned_by = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2::uuid[]) AND business_id = $3 RETURNING *;',
+      [agentId, deviceIds, business_id]
+    );
+
+    res.json({ msg: 'Devices assigned successfully to agent', devices: updatedDevices.rows });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+
+// @route   GET api/admin/super-agent-devices/:superAgentId
+// @desc    Get all devices for a specific super-agent
+// @access  Private (device:read)
+router.get('/super-agent-devices/:superAgentId', auth, can('device:read'), async (req, res) => {
+    const { business_id } = req.user;
+    const { superAgentId } = req.params;
+    try {
+        const devices = await query(`
+      SELECT
+        d.id,
+        d.serial_number AS "serialNumber",
+        d.status,
+        d.created_at AS "installDate",
+        dt.device_name AS type,
+        dt.device_model AS model,
+        dt.pricing->>'one-time' AS price,
+        dt.pricing AS plan,
+        d.assigned_to AS "assignedToId",
+        cu.name AS "assignedToCustomerName",
+        cu.username AS "assignedToCustomerUsername",
+        d.assigned_by AS "assignedById",
+        ag.name AS "assignedByAgentName",
+        d.super_agent_id AS "superAgentId",
+        sa.name AS "superAgentName",
+        l.id as loanId,
+        COALESCE(json_agg(DISTINCT deal.allowed_payment_frequencies) FILTER (WHERE deal.id IS NOT NULL), '["monthly", "weekly", "daily"]'::json) AS "allowedPaymentFrequencies",
+        json_agg(json_build_object(
+          'id', deal.id,
+          'dealName', deal.deal_name,
+          'startDate', deal.start_date,
+          'endDate', deal.end_date,
+          'allowedPaymentFrequencies', deal.allowed_payment_frequencies
+        )) FILTER (WHERE deal.id IS NOT NULL) AS "activeDeals"
+      FROM ray_devices d
+      JOIN ray_device_types dt ON d.device_type_id = dt.id
+      LEFT JOIN ray_users cu ON d.assigned_to = cu.id
+      LEFT JOIN ray_users ag ON d.assigned_by = ag.id
+      LEFT JOIN ray_users sa ON d.super_agent_id = sa.id
+      LEFT JOIN ray_deals deal ON dt.id = deal.device_type_id AND deal.start_date <= CURRENT_DATE AND deal.end_date >= CURRENT_DATE
+      LEFT JOIN ray_loans l ON l.device_id = d.id
+      WHERE d.business_id = $1 AND d.super_agent_id = $2
+      GROUP BY d.id, dt.id, cu.name, cu.username, ag.name, sa.name, l.id
+    `, [business_id, superAgentId]);
+        res.json(devices.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
 });
 
 module.exports = router;
