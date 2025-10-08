@@ -14,12 +14,12 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
 
     let token = null;
     let tokenExpirationDays = 30;
-
+    let deviceId = null
     if (loanId) {
       const loanResult = await client.query('SELECT l.payment_amount_per_cycle, l.device_id, l.payment_frequency, l.payment_cycle_amount, dt.token_validity_days FROM ray_loans l JOIN ray_devices d ON l.device_id = d.id JOIN ray_device_types dt ON d.device_type_id = dt.id WHERE l.id = $1 AND l.business_id = $2', [loanId, business_id]);
       if (loanResult.rows.length > 0) {
         const { device_id, payment_frequency, payment_cycle_amount, token_validity_days } = loanResult.rows[0];
-
+        deviceId = device_id;
         if (isInitialPayment && token_validity_days) {
             tokenExpirationDays = token_validity_days;
         } else {
@@ -55,7 +55,7 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                 }
                 token = bioliteResponse.codeStr;
                 console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
-            } else if (manufacturer === 'beebeejump' && !isNonTokenised) {
+            } else if (manufacturer === 'beebeejumpi' && !isNonTokenised) {
                 const beebeeResponse = await getActivationCode(serialNum, `${tokenExpirationDays}Days`);
                 if (beebeeResponse && beebeeResponse.data && beebeeResponse.data.activationCode) {
                     token = beebeeResponse.data.activationCode;
@@ -78,8 +78,8 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                 token = Math.floor(100000 + Math.random() * 900000).toString();
                 console.log(`Generated Ray device token: ${token}`);
             } else {
-              // token = Math.floor(100000 + Math.random() * 900000).toString();
-                throw new Error(`Token generation for unsupported manufacturer: '${manufacturer}'`);
+              token = Math.floor(100000 + Math.random() * 900000).toString();
+                // throw new Error(`Token generation for unsupported manufacturer: '${manufacturer}'`);
             }
         } else if (loanId) {
             throw new Error(`Could not find serial number for device associated with loan ${loanId}. Cannot generate token.`);
@@ -115,17 +115,56 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
 
       if (agentResult.rows.length > 0) {
         const agent = agentResult.rows[0];
-        let commissionRate = agent.commission_rate;
-        console.log({ commissionRate });
-        if (!commissionRate || commissionRate == 0) {
-            const generalRate = await client.query("SELECT setting_value FROM ray_settings WHERE setting_key = $1 AND business_id = $2", ['general_agent_commission_rate', business_id]);
-            if(generalRate.rows.length > 0) commissionRate = parseFloat(generalRate.rows[0].setting_value);
+        let commissionAmount = 0;
+        let commissionRate = 0; // Initialize commissionRate
+
+        // Fetch first-time commission settings
+        const firstTimeCommissionSetting = await client.query(
+          'SELECT commission_amount FROM first_time_commission_settings WHERE business_id = $1',
+          [business_id]
+        );
+        const fixedFirstTimeCommission = firstTimeCommissionSetting.rows.length > 0
+          ? parseFloat(firstTimeCommissionSetting.rows[0].commission_amount)
+          : 0;
+
+        // Check device's first_time_commission_paid status
+        const deviceCommissionStatus = await client.query(
+          'SELECT first_time_commission_paid FROM ray_devices WHERE id = $1 AND business_id = $2',
+          [deviceId, business_id] 
+        );
+        const hasPaidFirstTimeCommission = deviceCommissionStatus.rows.length > 0
+          ? deviceCommissionStatus.rows[0].first_time_commission_paid
+          : false;
+
+        if (!hasPaidFirstTimeCommission && fixedFirstTimeCommission > 0) {
+          // Apply fixed first-time commission
+          commissionAmount = fixedFirstTimeCommission;
+          commissionRate = 0; // Fixed amount, so rate is not directly applicable here for logging
+          await client.query(
+            'UPDATE ray_devices SET first_time_commission_paid = TRUE WHERE id = $1 AND business_id = $2',
+            [deviceId, business_id]
+          );
+          console.log(`Applied first-time commission of ${commissionAmount} for device ${deviceId} to agent ${agentId}`);
+        } else {
+          // Mark first-time commission as paid if not already so that it doesn't get applied again
+          await client.query(
+            'UPDATE ray_devices SET first_time_commission_paid = TRUE WHERE id = $1 AND business_id = $2',
+            [deviceId, business_id]
+          );
+          // Apply regular commission logic
+          commissionRate = agent.commission_rate;
+          if (!commissionRate || commissionRate == 0) {
+              const generalRate = await client.query("SELECT setting_value FROM ray_settings WHERE setting_key = $1 AND business_id = $2", ['general_agent_commission_rate', business_id]);
+              if(generalRate.rows.length > 0) commissionRate = parseFloat(generalRate.rows[0].setting_value);
+          }
+
+          if(commissionRate > 0) {
+              commissionAmount = (amount * commissionRate) / 100;
+          }
         }
 
-        if(commissionRate > 0) {
-            const commissionAmount = (amount * commissionRate) / 100;
+        if(commissionAmount > 0) {
             const superAgentId = agent.super_agent_id;
-            // console.log({superAgentId, commissionAmount})
             if (superAgentId) {
                 const superAgentResult = await client.query('SELECT commission_rate FROM ray_users WHERE id = $1 AND business_id = $2', [superAgentId, business_id]);
                 if (superAgentResult.rows.length > 0) {

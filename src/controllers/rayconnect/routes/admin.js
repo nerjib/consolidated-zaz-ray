@@ -9,7 +9,7 @@ const { query } = require('../config/database');
 // @desc    Create a new agent for the business
 // @access  Private (user:manage)
 router.post('/create-agent', auth, can('user:manage', ['super-agent']), async (req, res) => {
-  const { username, role, email, password, phone_number, state, city, address, landmark, gps, name } = req.body;
+  const { username, role, email, password, phone_number, state, city, address, landmark, gps, name, profile_picture_base64, nin } = req.body;
   console.log({role});
   const { id: creatorId, business_id, role: creatorRole } = req.user;
   console.log({business_id, creatorRole});
@@ -33,8 +33,8 @@ router.post('/create-agent', auth, can('user:manage', ['super-agent']), async (r
     const superAgentId = creatorRole === 'super-agent' ? creatorId : null;
 
     const newAgent = await query(
-      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, super_agent_id, name, status, business_id, role_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, super_agent_id, name, business_id',
-      [username, email, hashedPassword, creatorRole === 'super-agent' ? 'agent' : role, phone_number, state, city, address, landmark, gps, superAgentId, name, creatorRole === 'admin' ? 'active' : 'pending', business_id, role_id]
+      'INSERT INTO ray_users (username, email, password, role, phone_number, state, city, address, landmark, gps, super_agent_id, name, status, business_id, role_id, profile_picture_base64, id_number) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id, username, email, role, phone_number, state, city, address, landmark, gps, super_agent_id, name, business_id',
+      [username, email, hashedPassword, creatorRole === 'super-agent' ? 'agent' : role, phone_number, state, city, address, landmark, gps, superAgentId, name, creatorRole === 'admin' ? 'active' : 'pending', business_id, role_id, profile_picture_base64, nin]
     );
 
     res.json({ msg: 'Agent created successfully', agent: newAgent.rows[0] });
@@ -616,6 +616,62 @@ router.get('/super-agent-devices/:superAgentId', auth, can('device:read'), async
         console.error(err.message);
         res.status(500).send('Server Error');
     }
+});
+
+// @route   PUT api/admin/settings/first-time-commission
+// @desc    Set the fixed first-time commission amount for a device sale for the business
+// @access  Private (business:update)
+router.put('/settings/first-time-commission', auth, can('business:update'), async (req, res) => {
+  const { commission_rate: amount } = req.body;
+  const { business_id } = req.user;
+  console.log({amount, business_id});
+  try {
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({ msg: 'Commission amount must be a positive number.' });
+    }
+    if (!business_id) {
+        return res.status(400).json({ msg: 'Business ID not found in user token.' });
+    }
+
+    await query(
+      `INSERT INTO first_time_commission_settings (business_id, commission_amount)
+       VALUES ($1, $2)
+       ON CONFLICT (business_id) DO UPDATE SET commission_amount = $2;`,
+      [business_id, amount]
+    );
+
+    res.json({ msg: 'First-time commission amount updated successfully for this business.' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET api/admin/settings/first-time-commission
+// @desc    Get the fixed first-time commission amount for a device sale for the business
+// @access  Private (business:update)
+router.get('/settings/first-time-commission', auth, can('business:update'), async (req, res) => {
+  const { business_id } = req.user;
+
+  try {
+    if (!business_id) {
+        return res.status(400).json({ msg: 'Business ID not found in user token.' });
+    }
+
+    const result = await query(
+      'SELECT commission_amount FROM first_time_commission_settings WHERE business_id = $1',
+      [business_id]
+    );
+
+    if (result.rows.length > 0) {
+      res.json({ commission_amount: parseFloat(result.rows[0].commission_amount) });
+    } else {
+      res.status(404).json({ msg: 'First-time commission settings not found for this business.' });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
 });
 
 module.exports = router;

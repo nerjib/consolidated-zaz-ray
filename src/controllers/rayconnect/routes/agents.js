@@ -20,6 +20,7 @@ router.get('/', auth, can('agent:read'), async (req, res) => {
         u.state AS region, 
         u.status,
         u.credit_balance,
+        u.profile_picture_base64 as profile_img,
         u.commission_rate AS "commissionRate",
         (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = u.id AND business_id = $1) AS "devicesManaged",
         (SELECT COUNT(*) FROM ray_users WHERE created_by = u.id AND role = 'customer' AND business_id = $1) AS "totalCustomers",
@@ -319,6 +320,7 @@ router.get('/:id', auth, can('agent:read', ['super-agent', 'agent']), async (req
         u.address,
         u.landmark,
         u.gps,
+        u.profile_picture_base64 as profile_img,
         u.status,
         u.created_at AS "joinDate",
         u.last_active,
@@ -479,5 +481,34 @@ router.post('/withdraw-commission', auth, can('agent:withdraw:commission', ['age
         }
     }
   });
+
+// @route   PUT api/agents/profile-picture
+// @desc    Upload agent's profile picture as Base64
+// @access  Private (Authenticated Agent)
+router.put('/profile-picture', auth, async (req, res) => {
+  const { profile_picture_base64 } = req.body;
+  const { id: agentId, business_id } = req.user;
+
+  try {
+    if (!profile_picture_base64) {
+      return res.status(400).json({ msg: 'Profile picture Base64 string is required.' });
+    }
+
+    // Basic validation: check if it's a string and not excessively long (500KB limit)
+    if (typeof profile_picture_base64 !== 'string' || profile_picture_base64.length > 500 * 1024) {
+      return res.status(400).json({ msg: 'Invalid or excessively large Base64 string (max 500KB).' });
+    }
+
+    await query(
+      'UPDATE ray_users SET profile_picture_base64 = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING id, username;',
+      [profile_picture_base64, agentId, business_id]
+    );
+
+    res.json({ msg: 'Profile picture updated successfully.' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
 
 module.exports = router;

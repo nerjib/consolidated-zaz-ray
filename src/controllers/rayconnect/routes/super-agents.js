@@ -484,4 +484,33 @@ router.post('/withdraw-commission', auth, can('super:agent:withdraw:commission',
   }
 });
 
+// @route   PUT api/super-agents/profile-picture
+// @desc    Upload super agent's profile picture as Base64
+// @access  Private (Authenticated Super Agent)
+router.put('/profile-picture', auth, async (req, res) => {
+  const { profile_picture_base64 } = req.body;
+  const { id: superAgentId, business_id } = req.user;
+
+  try {
+    if (!profile_picture_base64) {
+      return res.status(400).json({ msg: 'Profile picture Base64 string is required.' });
+    }
+
+    // Basic validation: check if it's a string and not excessively long (500KB limit)
+    if (typeof profile_picture_base64 !== 'string' || profile_picture_base64.length > 500 * 1024) {
+      return res.status(400).json({ msg: 'Invalid or excessively large Base64 string (max 500KB).' });
+    }
+
+    await query(
+      'UPDATE ray_users SET profile_picture_base64 = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING id, username;',
+      [profile_picture_base64, superAgentId, business_id]
+    );
+
+    res.json({ msg: 'Profile picture updated successfully.' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;

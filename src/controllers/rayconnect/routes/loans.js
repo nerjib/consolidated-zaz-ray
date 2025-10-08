@@ -10,13 +10,18 @@ const { handleSuccessfulPayment } = require('../services/paymentService');
 // @access  Private (loan:create)
 router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req, res) => {
   console.log({bod: req.body})
-  const { customer_id, device_id, term_months, customer_address, customer_geocode, down_payment = 0, guarantor_details, agent_id, payment_frequency = 'monthly' } = req.body;
+  const { customer_id, device_id, term_months, customer_address, customer_geocode, down_payment = 0, guarantor_details, agent_id, payment_frequency = 'monthly', signed_agreement_base64 } = req.body;
   const { business_id, id: creatorId } = req.user;
   let client;
 
   try {
     if (!customer_id || !device_id || term_months === undefined) {
       return res.status(400).json({ msg: 'Please provide customer_id, device_id, and term_months' });
+    }
+
+    // Validate signed_agreement_base64 size if provided
+    if (signed_agreement_base64 && (typeof signed_agreement_base64 !== 'string' || signed_agreement_base64.length > 500 * 1024)) {
+      return res.status(400).json({ msg: 'Invalid or excessively large signed agreement Base64 string (max 500KB).' });
     }
 
     const customer = await query(`SELECT id FROM ray_users WHERE id = $1 AND role= 'customer' AND business_id = $2`, [customer_id, business_id]);
@@ -113,8 +118,8 @@ router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req,
     }
 
     const newLoanResult = await client.query(
-      'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *;',
-      [customer_id, device_id, financed_amount, 0, financed_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, loanAgentId, 'active', payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address]
+      'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address, signed_agreement_base64) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *;',
+      [customer_id, device_id, financed_amount, 0, financed_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, loanAgentId, 'active', payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address, signed_agreement_base64]
     );
     const newLoan = newLoanResult.rows[0];
 
@@ -162,6 +167,7 @@ router.get('/', auth, can('loan:read'), async (req, res) => {
     const loans = await query(`
       SELECT
         l.id AS loan_id,
+        l.created_at AS start_date,
         u.username AS customer_name,
         l.total_amount AS loan_amount,
         (l.amount_paid / l.total_amount) * 100 AS payment_progress,
@@ -197,7 +203,8 @@ router.get('/:id', auth, can('loan:read'), async (req, res) => {
         l.balance AS "remainingAmount",
         l.agent_id,
         l.status,
-        l.start_date AS "startDate",
+        l.signed_agreement_base64 AS "signedAgreement",
+        l.created_at AS "startDate",
         l.end_date AS "endDate",
         l.next_payment_date AS "nextPaymentDate",
         l.payment_amount_per_cycle AS "paymentAmountPerCycle",
