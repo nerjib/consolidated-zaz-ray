@@ -5,11 +5,13 @@ const crypto = require('crypto');
 // const API_URL = 'http://activecodes.beebeejump.com:8889/api/bbj/activecode/getActiceCode'; // Replace with actual API URL
 // const API_KEY = '9c9397471c9862dc8ab31ff6427e5e51';
 // const API_SECRET = 'dc62557e092268e136fdfd074f9b4893';
+// const IV = 'hamiton202506162'; // Initialization vector
+// const KEY = 'd25ccecd7ee2b847a41c5259fafbced1'; // Secret key
 const API_URL = 'http://beximak.beebeejump.com/api/bbj/activecode/getActiceCode'; // Replace with actual API URL
 const API_KEY = 'ce4691fcdc9b2a1c';
 const API_SECRET = 'b893a32469ddbb7e1638fe08e2ed47e9';
-const IV = 'hamiton202506162'; // Initialization vector
-const KEY = 'd25ccecd7ee2b847a41c5259fafbced1'; // Secret key
+const IV = 'beximak#20250920'; // Initialization vector
+const KEY = '83e70ef36991df544bec57ec94c6efad'; // Secret key
 
 // AES Encryption/Decryption Utility
 class AESCipher {
