@@ -55,7 +55,7 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                 }
                 token = bioliteResponse.codeStr;
                 console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
-            } else if (manufacturer === 'beebeejumpi' && !isNonTokenised) {
+            } else if (manufacturer === 'beebeejump' && !isNonTokenised) {
                 const beebeeResponse = await getActivationCode(serialNum, `${tokenExpirationDays}Days`);
                 if (beebeeResponse && beebeeResponse.data && beebeeResponse.data.activationCode) {
                     token = beebeeResponse.data.activationCode;
@@ -78,8 +78,8 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                 token = Math.floor(100000 + Math.random() * 900000).toString();
                 console.log(`Generated Ray device token: ${token}`);
             } else {
-              token = Math.floor(100000 + Math.random() * 900000).toString();
-                // throw new Error(`Token generation for unsupported manufacturer: '${manufacturer}'`);
+              // token = Math.floor(100000 + Math.random() * 900000).toString();
+                throw new Error(`Token generation for unsupported manufacturer: '${manufacturer}'`);
             }
         } else if (loanId) {
             throw new Error(`Could not find serial number for device associated with loan ${loanId}. Cannot generate token.`);
