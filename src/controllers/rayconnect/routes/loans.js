@@ -15,8 +15,8 @@ router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req,
   let client;
 
   try {
-    if (!customer_id || !device_id || term_months === undefined) {
-      return res.status(400).json({ msg: 'Please provide customer_id, device_id, and term_months' });
+    if (!customer_id || !device_id || term_months === undefined || !signed_agreement_base64) {
+      return res.status(400).json({ msg: 'Please provide customer_id, device_id, signed agreement and term_months' });
     }
 
     // Validate signed_agreement_base64 size if provided
