@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const can = require('../middleware/can');
 const { query, pool } = require('../config/database');
 const { handleSuccessfulPayment } = require('../services/paymentService');
+const { handleOnetimePayment } = require('../services/unlockService');
 
 // @route   POST api/loans
 // @desc    Create a new loan for a customer within the business
@@ -38,7 +39,7 @@ router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req,
       return res.status(400).json({ msg: 'Device is not available for assignment. Current status: ' + device.status });
     }
 
-    const deviceTypeResult = await query('SELECT pricing, default_down_payment FROM ray_device_types WHERE id = $1 AND business_id = $2', [device.device_type_id, business_id]);
+    const deviceTypeResult = await query('SELECT pricing, default_down_payment, onetime_commission_rate FROM ray_device_types WHERE id = $1 AND business_id = $2', [device.device_type_id, business_id]);
     if (deviceTypeResult.rows.length === 0) {
       return res.status(404).json({ msg: 'Device type not found for this device in your business.' });
     }
@@ -47,101 +48,151 @@ router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req,
     const pricing = deviceType.pricing;
     const default_down_payment = deviceType.default_down_payment;
 
-    if (down_payment !== undefined && down_payment !== null) {
-        if (parseFloat(down_payment) !== parseFloat(default_down_payment)) {
-            return res.status(400).json({ msg: `The provided down payment (${down_payment}) does not match the required down payment (${default_down_payment}) for this device type.` });
-        }
-    } else {
-        down_payment = default_down_payment || 0;
-    }
+    // if (down_payment !== undefined && down_payment !== null) {
+    //     if (parseFloat(down_payment) !== parseFloat(default_down_payment)) {
+    //         return res.status(400).json({ msg: `The provided down payment (${down_payment}) does not match the required down payment (${default_down_payment}) for this device type.` });
+    //     }
+    // } else {
+    //     down_payment = default_down_payment || 0;
+    // }
     let selectedPrice;
-    if (term_months === 0) selectedPrice = pricing['one-time'];
-    else if (term_months === 6) selectedPrice = pricing['6-month'];
-    else if (term_months === 12) selectedPrice = pricing['12-month'];
-    else if (term_months === 16) selectedPrice = pricing['16-month'];
-    else if (term_months === 18) selectedPrice = pricing['18-month'];
-    else if (term_months === 24) selectedPrice = pricing['24-month'];
-    else return res.status(400).json({ msg: 'Invalid term_months. Must be 0, 12, or 24.' });
+    if (term_months === 0) {
+        selectedPrice = pricing['one-time'];
+    } else {
+        selectedPrice = pricing[`${term_months}-month`];
+    }
 
     if (selectedPrice === undefined || selectedPrice === null) {
       return res.status(400).json({ msg: `Price for ${term_months}-month plan not found for this device type.` });
     }
 
-    const activeDeal = await query(
-      'SELECT allowed_payment_frequencies FROM ray_deals WHERE device_type_id = $1 AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE AND business_id = $2',
-      [device.device_type_id, business_id]
-    );
-    if (activeDeal.rows.length > 0 && !activeDeal.rows[0].allowed_payment_frequencies.includes(payment_frequency)) {
-      return res.status(400).json({ msg: `Payment frequency '${payment_frequency}' is not allowed for this device type due to an active deal.` });
-    }
+    const loanAgentId = agent_id || creatorId;
 
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const loanAgentId = agent_id || creatorId;
-
-    if (down_payment > 0) {
-      const agentResult = await client.query('SELECT credit_balance FROM ray_users WHERE id = $1 AND business_id = $2 FOR UPDATE', [creatorId, business_id]);
-      if (agentResult.rows.length === 0) {
-        throw new Error('Loan creator (agent) not found.');
-      }
-      const agentCredit = agentResult.rows[0].credit_balance;
-      if (agentCredit < down_payment) {
-        throw new Error('Insufficient agent credit for down payment.');
-      }
-      await client.query('UPDATE ray_users SET credit_balance = credit_balance - $1 WHERE id = $2 AND business_id = $3', [down_payment, creatorId, business_id]);
-    }
-
-    await client.query(
-      'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND business_id = $5;',
-      [customer_id, loanAgentId, 'assigned', device_id, business_id]
-    );
-
-    const financed_amount = selectedPrice - down_payment;
-    let payment_cycle_amount = 0;
-    let next_payment_date = new Date();
-    if (term_months > 0) {
-        switch (payment_frequency) {
-          case 'daily':
-            payment_cycle_amount = financed_amount / (term_months * 30);
-            next_payment_date.setDate(next_payment_date.getDate() + 1);
-            break;
-          case 'weekly':
-            payment_cycle_amount = financed_amount / (term_months * 4);
-            next_payment_date.setDate(next_payment_date.getDate() + 7);
-            break;
-          default: // monthly
-            payment_cycle_amount = financed_amount / term_months;
-            next_payment_date.setMonth(next_payment_date.getMonth() + 1);
-            break;
+    if (term_months === 0) {
+        if (down_payment !== selectedPrice) {
+            await client.query('ROLLBACK');
+            client.release();
+            return res.status(400).json({ msg: `For a one-time purchase, the down_payment of ${down_payment} must match the device price of ${selectedPrice}.` });
         }
+
+        const agentResult = await client.query('SELECT credit_balance FROM ray_users WHERE id = $1 AND business_id = $2 FOR UPDATE', [creatorId, business_id]);
+        if (agentResult.rows.length === 0) throw new Error('Loan creator (agent) not found.');
+        if (agentResult.rows[0].credit_balance < down_payment) throw new Error('Insufficient agent credit for the payment.');
+        
+        await client.query('UPDATE ray_users SET credit_balance = credit_balance - $1 WHERE id = $2', [down_payment, creatorId]);
+
+        await client.query(
+          'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND business_id = $5;',
+          [customer_id, loanAgentId, 'assigned', device_id, business_id]
+        );
+
+        const newLoanResult = await client.query(
+          'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, status, down_payment, agent_id, business_id, signed_agreement_base64, end_date, payment_frequency) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), $12) RETURNING *;',
+          [customer_id, device_id, selectedPrice, selectedPrice, 0, 0, 'completed', down_payment, loanAgentId, business_id, signed_agreement_base64, payment_frequency]
+        );
+        const newLoan = newLoanResult.rows[0];
+
+        const transaction_id = `FP-${Date.now()}-${newLoan.id}`;
+        const paymentResult = await client.query(
+          'INSERT INTO ray_payments (loan_id, user_id, amount, payment_method, status, business_id, transaction_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, (SELECT credit_balance FROM ray_users WHERE id = $8)',
+          [newLoan.id, customer_id, down_payment, 'agent-credit', 'completed', business_id, transaction_id, creatorId]
+        );
+        const newPaymentId = paymentResult.rows[0].id;
+        const agentNewBalance = paymentResult.rows[0].credit_balance;
+
+        await client.query(
+          'INSERT INTO ray_credit_transactions (user_id, transaction_type, amount, new_balance, reference_id, description, created_by, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+          [creatorId, 'payment', down_payment, agentNewBalance, newPaymentId, `Full payment for loan ${newLoan.id}`, creatorId, business_id]
+        );
+
+        const token = await handleOnetimePayment(client, {
+            customer_id,
+            device_id,
+            business_id,
+            amount: down_payment,
+            payment_id: newPaymentId,
+            onetime_commission_rate: Number(deviceType?.onetime_commission_rate),
+            agent_id: creatorId
+        });
+
+        await client.query('COMMIT');
+        res.json({ msg: 'Device purchased successfully', loan: newLoan, token });
+
+    } else {
+        const activeDeal = await query(
+          'SELECT allowed_payment_frequencies FROM ray_deals WHERE device_type_id = $1 AND start_date <= CURRENT_DATE AND end_date >= CURRENT_DATE AND business_id = $2',
+          [device.device_type_id, business_id]
+        );
+        if (activeDeal.rows.length > 0 && !activeDeal.rows[0].allowed_payment_frequencies.includes(payment_frequency)) {
+          return res.status(400).json({ msg: `Payment frequency '${payment_frequency}' is not allowed for this device type due to an active deal.` });
+        }
+
+        if (down_payment > 0) {
+          const agentResult = await client.query('SELECT credit_balance FROM ray_users WHERE id = $1 AND business_id = $2 FOR UPDATE', [creatorId, business_id]);
+          if (agentResult.rows.length === 0) {
+            throw new Error('Loan creator (agent) not found.');
+          }
+          const agentCredit = agentResult.rows[0].credit_balance;
+          if (agentCredit < down_payment) {
+            throw new Error('Insufficient agent credit for down payment.');
+          }
+          await client.query('UPDATE ray_users SET credit_balance = credit_balance - $1 WHERE id = $2 AND business_id = $3', [down_payment, creatorId, business_id]);
+        }
+
+        await client.query(
+          'UPDATE ray_devices SET assigned_to = $1, assigned_by = $2, status = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND business_id = $5;',
+          [customer_id, loanAgentId, 'assigned', device_id, business_id]
+        );
+
+        const financed_amount = selectedPrice - down_payment;
+        let payment_cycle_amount = 0;
+        let next_payment_date = new Date();
+        if (term_months > 0) {
+            switch (payment_frequency) {
+              case 'daily':
+                payment_cycle_amount = financed_amount / (term_months * 30);
+                next_payment_date.setDate(next_payment_date.getDate() + 1);
+                break;
+              case 'weekly':
+                payment_cycle_amount = financed_amount / (term_months * 4);
+                next_payment_date.setDate(next_payment_date.getDate() + 7);
+                break;
+              default: // monthly
+                payment_cycle_amount = financed_amount / term_months;
+                next_payment_date.setMonth(next_payment_date.getMonth() + 1);
+                break;
+            }
+        }
+
+        const newLoanResult = await client.query(
+          'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address, signed_agreement_base64) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *;',
+          [customer_id, device_id, financed_amount, 0, financed_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, loanAgentId, 'active', payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address, signed_agreement_base64]
+        );
+        const newLoan = newLoanResult.rows[0];
+
+        if (down_payment > 0) {
+          const transaction_id = `DP-${Date.now()}-${newLoan.id}`;
+          const paymentResult = await client.query(
+            'INSERT INTO ray_payments (loan_id, user_id, amount, payment_method, status, business_id, transaction_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, (SELECT credit_balance FROM ray_users WHERE id = $8)',
+            [newLoan.id, customer_id, down_payment, 'agent-credit', 'completed', business_id, transaction_id, creatorId]
+          );
+          const newPaymentId = paymentResult.rows[0].id;
+          const agentNewBalance = paymentResult.rows[0].credit_balance;
+
+          await client.query(
+            'INSERT INTO ray_credit_transactions (user_id, transaction_type, amount, new_balance, reference_id, description, created_by, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+            [creatorId, 'down_payment', down_payment, agentNewBalance, newPaymentId, `Down payment for loan ${newLoan.id}`, creatorId, business_id]
+          );
+
+          await handleSuccessfulPayment(client, customer_id, down_payment, newPaymentId, newLoan.id, business_id, true);
+        }
+
+        await client.query('COMMIT');
+        res.json({ msg: 'Loan created successfully', loan: newLoan });
     }
-
-    const newLoanResult = await client.query(
-      'INSERT INTO ray_loans (customer_id, device_id, total_amount, amount_paid, balance, term_months, payment_amount_per_cycle, down_payment, next_payment_date, guarantor_details, agent_id, status, payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address, signed_agreement_base64) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *;',
-      [customer_id, device_id, financed_amount, 0, financed_amount, term_months, payment_cycle_amount, down_payment, next_payment_date, guarantor_details, loanAgentId, 'active', payment_frequency, payment_cycle_amount, business_id, customer_geocode, customer_address, signed_agreement_base64]
-    );
-    const newLoan = newLoanResult.rows[0];
-
-    if (down_payment > 0) {
-      const transaction_id = `DP-${Date.now()}-${newLoan.id}`;
-      const paymentResult = await client.query(
-        'INSERT INTO ray_payments (loan_id, user_id, amount, payment_method, status, business_id, transaction_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, (SELECT credit_balance FROM ray_users WHERE id = $8)',
-        [newLoan.id, customer_id, down_payment, 'agent-credit', 'completed', business_id, transaction_id, creatorId]
-      );
-      const newPaymentId = paymentResult.rows[0].id;
-      const agentNewBalance = paymentResult.rows[0].credit_balance;
-
-      await client.query(
-        'INSERT INTO ray_credit_transactions (user_id, transaction_type, amount, new_balance, reference_id, description, created_by, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-        [creatorId, 'down_payment', down_payment, agentNewBalance, newPaymentId, `Down payment for loan ${newLoan.id}`, creatorId, business_id]
-      );
-
-      await handleSuccessfulPayment(client, customer_id, down_payment, newPaymentId, newLoan.id, business_id, true);
-    }
-
-    await client.query('COMMIT');
-    res.json({ msg: 'Loan created successfully', loan: newLoan });
   } catch (err) {
     if (client) {
       await client.query('ROLLBACK');

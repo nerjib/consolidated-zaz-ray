@@ -16,30 +16,11 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
     let tokenExpirationDays = 30;
     let deviceId = null
     if (loanId) {
-      const loanResult = await client.query('SELECT l.payment_amount_per_cycle, l.device_id, l.payment_frequency, l.payment_cycle_amount, dt.token_validity_days FROM ray_loans l JOIN ray_devices d ON l.device_id = d.id JOIN ray_device_types dt ON d.device_type_id = dt.id WHERE l.id = $1 AND l.business_id = $2', [loanId, business_id]);
+      const loanResult = await client.query('SELECT l.payment_amount_per_cycle, l.device_id, l.payment_frequency, l.payment_cycle_amount, dt.token_validity_days, l.balance FROM ray_loans l JOIN ray_devices d ON l.device_id = d.id JOIN ray_device_types dt ON d.device_type_id = dt.id WHERE l.id = $1 AND l.business_id = $2', [loanId, business_id]);
       if (loanResult.rows.length > 0) {
-        const { device_id, payment_frequency, payment_cycle_amount, token_validity_days } = loanResult.rows[0];
+        const { device_id, payment_frequency, payment_cycle_amount, token_validity_days, balance } = loanResult.rows[0];
         deviceId = device_id;
-        if (isInitialPayment && token_validity_days) {
-            tokenExpirationDays = token_validity_days;
-        } else {
-            if (amount >= payment_cycle_amount && payment_cycle_amount > 0) {
-                const extraAmount = amount - payment_cycle_amount;
-                let days_in_cycle;
-                switch (payment_frequency) {
-                  case 'daily': days_in_cycle = 1; break;
-                  case 'weekly': days_in_cycle = 7; break;
-                  default: days_in_cycle = 30; break;
-                }
-                tokenExpirationDays = Math.floor(days_in_cycle + (extraAmount / payment_cycle_amount) * days_in_cycle);
-            } else {
-                switch (payment_frequency) {
-                  case 'daily': tokenExpirationDays = 1; break;
-                  case 'weekly': tokenExpirationDays = 7; break;
-                  default: tokenExpirationDays = 30; break;
-                }
-            }
-        }
+        const newBalance = parseFloat(balance) - parseFloat(amount);
 
         const deviceResult = await client.query('SELECT d.serial_number, d.non_tokenised, dt.manufacturer, d.openpaygo_secret_key, d.openpaygo_token_count FROM ray_devices d JOIN ray_device_types dt on d.device_type_id = dt.id WHERE d.id = $1 AND d.business_id = $2', [device_id, business_id]);
         const serialNum = deviceResult.rows.length > 0 ? deviceResult.rows[0].serial_number : null;
@@ -47,19 +28,55 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
         const isNonTokenised = deviceResult.rows.length > 0 ? deviceResult.rows[0].non_tokenised : false;
         const openpaygo_secret_key = deviceResult.rows.length > 0 ? deviceResult.rows[0].openpaygo_secret_key : null;
         const openpaygo_token_count = deviceResult.rows.length > 0 ? deviceResult.rows[0].openpaygo_token_count : 0;
-        if (serialNum) {
+
+        if (newBalance <= 0) {
+            // Loan completed, generate permanent token
+            tokenExpirationDays = null;
+            if (!serialNum) throw new Error(`Could not find serial number for device associated with loan ${loanId}.`);
+
+            if (manufacturer === 'biolite') {
+                const bioliteResponse = await generateBioliteCode(serialNum, 'unlock', 0, credentials);
+                if (!bioliteResponse || !bioliteResponse.codeStr) throw new Error(`BioLite service did not return a valid activation code for SN ${serialNum}.`);
+                token = bioliteResponse.codeStr;
+            } else if (manufacturer === 'beebeejump' && !isNonTokenised) {
+                const beebeeResponse = await getActivationCode(serialNum, 'ForeverCode');
+                if (beebeeResponse && beebeeResponse.data && beebeeResponse.data.activationCode) token = beebeeResponse.data.activationCode;
+                else throw new Error(`BeeBeeJump service did not return a valid activation code for SN ${serialNum}.`);
+            } else if (manufacturer === 'solarun') {
+                if (!openpaygo_secret_key) throw new Error(`OpenPAYGO device ${serialNum} does not have a secret key.`);
+                const { updatedCount, token: generatedToken } = generateToken(openpaygo_secret_key, 0, openpaygo_token_count, TokenType.DISABLE_PAYG);
+                token = generatedToken;
+                await client.query('UPDATE ray_devices SET openpaygo_token_count = $1 WHERE id = $2', [updatedCount, device_id]);
+            } else {
+                token = 'open';
+            }
+
+        } else {
+            // Loan still active, generate temporary token
+            if (isInitialPayment && token_validity_days) {
+                tokenExpirationDays = token_validity_days;
+            } else {
+                if (amount >= payment_cycle_amount && payment_cycle_amount > 0) {
+                    const extraAmount = amount - payment_cycle_amount;
+                    let days_in_cycle = payment_frequency === 'daily' ? 1 : payment_frequency === 'weekly' ? 7 : 30;
+                    tokenExpirationDays = Math.floor(days_in_cycle + (extraAmount / payment_cycle_amount) * days_in_cycle);
+                } else {
+                    tokenExpirationDays = payment_frequency === 'daily' ? 1 : payment_frequency === 'weekly' ? 7 : 30;
+                }
+            }
+
+            if (!serialNum) throw new Error(`Could not find serial number for device associated with loan ${loanId}.`);
+
             if (manufacturer === 'biolite' && credentials.biolite_private_key) {
                 const bioliteResponse = await generateBioliteCode(serialNum, 'add_time', tokenExpirationDays, credentials);
                 if (!bioliteResponse || !bioliteResponse.codeStr) {
                     throw new Error(`BioLite service did not return a valid activation code for SN ${serialNum}.`);
                 }
                 token = bioliteResponse.codeStr;
-                console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
             } else if (manufacturer === 'beebeejump' && !isNonTokenised) {
                 const beebeeResponse = await getActivationCode(serialNum, `${tokenExpirationDays}Days`);
                 if (beebeeResponse && beebeeResponse.data && beebeeResponse.data.activationCode) {
                     token = beebeeResponse.data.activationCode;
-                    console.log(`Generated BeeBeeJump code for device ${serialNum} ${tokenExpirationDays} days: ${token}`);
                 } else {
                     throw new Error(`BeeBeeJump service did not return a valid activation code for SN ${serialNum}.`);
                 }
@@ -67,22 +84,14 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
                 if (!openpaygo_secret_key) {
                     throw new Error(`OpenPAYGO device ${serialNum} does not have a secret key.`);
                 }
-                console.log({openpaygo_secret_key, tokenExpirationDays, openpaygo_token_count});
                 const { updatedCount, token: generatedToken } = generateToken(openpaygo_secret_key, tokenExpirationDays, openpaygo_token_count, TokenType.COUNTER_SYNC);
                 token = generatedToken;
-                console.log(`Generated OpenPAYGO code for device ${serialNum}: ${token}`);
-                // Update token count
                 await client.query('UPDATE ray_devices SET openpaygo_token_count = $1 WHERE id = $2', [updatedCount, device_id]);
             } else if (manufacturer === 'beebeejump' && isNonTokenised) {
-                // For Ray devices, we generate a random 6-digit token
                 token = Math.floor(100000 + Math.random() * 900000).toString();
-                console.log(`Generated Ray device token: ${token}`);
             } else {
-              // token = Math.floor(100000 + Math.random() * 900000).toString();
                 throw new Error(`Token generation for unsupported manufacturer: '${manufacturer}'`);
             }
-        } else if (loanId) {
-            throw new Error(`Could not find serial number for device associated with loan ${loanId}. Cannot generate token.`);
         }
       }
     }
@@ -92,16 +101,16 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
 
     await client.query(
       'INSERT INTO ray_tokens (user_id, token, payment_id, expires_at, business_id) VALUES ($1, $2, $3, $4, $5)',
-      [userId, token, paymentId, new Date(Date.now() + tokenExpirationDays * 24 * 60 * 60 * 1000), business_id]
+      [userId, token, paymentId, tokenExpirationDays ? new Date(Date.now() + tokenExpirationDays * 24 * 60 * 60 * 1000) : null, business_id]
     );
 
     const user = await client.query('SELECT phone_number FROM ray_users WHERE id = $1 AND business_id = $2', [userId, business_id]);
     const userContact = user.rows[0] ? user.rows[0].phone_number : null;
 
     if (userContact && credentials.africastalking_api_key) {
-      const message = `Your PayGo activation code is: ${token}. Amount paid: ${amount}. Valid for ${tokenExpirationDays} days.`;
+      const message = `Your PayGo activation code is: ${token}. Amount paid: ${amount}. ${tokenExpirationDays ? `Valid for ${tokenExpirationDays} days.` : 'This is a permanent unlock code.'}`;
       await sendSMS(userContact, message, credentials);
-      console.log(`Activation code ${token} sent to user ${userId} via SMS ${tokenExpirationDays}days.`);
+      console.log(`Activation code ${token} sent to user ${userId} via SMS ${tokenExpirationDays ? `${tokenExpirationDays} days` : 'permanently'}.`);
     }
 
     const assignedDevices = await client.query(
@@ -241,6 +250,155 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
   }
 };
 
+const generateDeviceTokenForReplacement = async (client, deviceId, businessId, loanId) => {
+  try {
+    const credentials = await getBusinessCredentials(businessId);
+    if (!credentials) {
+      throw new Error(`Could not retrieve credentials for business ${businessId}`);
+    }
+
+    // Fetch loan details to calculate remaining days
+    const loanResult = await client.query(
+      'SELECT next_payment_date, paused_at, status, customer_id FROM ray_loans WHERE id = $1 AND business_id = $2',
+      [loanId, businessId]
+    );
+    if (loanResult.rows.length === 0) {
+      throw new Error(`Loan ${loanId} not found.`);
+    }
+    const loan = loanResult.rows[0];
+    const customerId = loan.customer_id;
+
+    let remainingDays = 0;
+    const now = new Date();
+
+    if (loan.status === 'paused' && loan.paused_at) {
+      const pausedAt = new Date(loan.paused_at);
+      // Calculate days from paused_at to now, then add to next_payment_date
+      // This logic needs to be consistent with how resume calculates next_payment_date
+      // For simplicity, let's assume remaining days are calculated from the original next_payment_date
+      // and adjusted by the paused duration.
+      // However, the request states "count the remaining days from there" (paused_at)
+      // which implies the token should be valid for the duration from paused_at to the original end of the loan period.
+      // Let's re-evaluate this. The most straightforward interpretation is to generate a token
+      // for the duration between the current date and the *adjusted* next_payment_date.
+
+      // If the loan was paused, the next_payment_date would have been adjusted upon resume.
+      // Since we are replacing a device on an *existing* loan, we should consider the current
+      // next_payment_date of the loan.
+      // The request "count the remaining days from there" (paused_at) is a bit ambiguous here.
+      // I will assume we need to calculate the days from the current date to the loan's next_payment_date.
+      // If the loan was paused, the next_payment_date would have been pushed forward.
+      // So, we calculate remaining days from now to the current next_payment_date.
+
+      if (new Date(loan.next_payment_date) > now) {
+        remainingDays = Math.ceil((new Date(loan.next_payment_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      } else {
+        // If next_payment_date is in the past, it means the loan is overdue or needs payment.
+        // For replacement, we should probably give at least a minimal token, e.g., 1 day.
+        remainingDays = 1;
+      }
+
+    } else if (loan.status === 'active' && loan.next_payment_date) {
+      if (new Date(loan.next_payment_date) > now) {
+        remainingDays = Math.ceil((new Date(loan.next_payment_date).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      } else {
+        // If next_payment_date is in the past, it means the loan is overdue or needs payment.
+        // For replacement, we should probably give at least a minimal token, e.g., 1 day.
+        remainingDays = 1;
+      }
+    } else {
+      // Loan has no next_payment_date or is completed/pending. Provide a default minimal token.
+      remainingDays = 1;
+    }
+
+    // Ensure remainingDays is at least 1
+    remainingDays = Math.max(1, remainingDays);
+
+    // Fetch device details for token generation
+    const deviceResult = await client.query(
+      'SELECT d.serial_number, d.non_tokenised, dt.manufacturer, d.openpaygo_secret_key, d.openpaygo_token_count FROM ray_devices d JOIN ray_device_types dt on d.device_type_id = dt.id WHERE d.id = $1 AND d.business_id = $2',
+      [deviceId, businessId]
+    );
+    if (deviceResult.rows.length === 0) {
+      throw new Error(`Device ${deviceId} not found.`);
+    }
+    const device = deviceResult.rows[0];
+
+    const serialNum = device.serial_number;
+    const manufacturer = device.manufacturer;
+    const isNonTokenised = device.non_tokenised;
+    const openpaygo_secret_key = device.openpaygo_secret_key;
+    let openpaygo_token_count = device.openpaygo_token_count;
+
+    let token = null;
+
+    if (serialNum) {
+      if (manufacturer === 'biolite' && credentials.biolite_private_key) {
+        const bioliteResponse = await generateBioliteCode(serialNum, 'add_time', remainingDays, credentials);
+        if (!bioliteResponse || !bioliteResponse.codeStr) {
+          throw new Error(`BioLite service did not return a valid activation code for SN ${serialNum}.`);
+        }
+        token = bioliteResponse.codeStr;
+        console.log(`Generated BioLite code for device ${serialNum}: ${token}`);
+      } else if (manufacturer === 'beebeejump' && !isNonTokenised) {
+        const beebeeResponse = await getActivationCode(serialNum, `${remainingDays}Days`);
+        if (beebeeResponse && beebeeResponse.data && beebeeResponse.data.activationCode) {
+          token = beebeeResponse.data.activationCode;
+          console.log(`Generated BeeBeeJump code for device ${serialNum} ${remainingDays} days: ${token}`);
+        } else {
+          throw new Error(`BeeBeeJump service did not return a valid activation code for SN ${serialNum}.`);
+        }
+      } else if (manufacturer === 'solarun') {
+        if (!openpaygo_secret_key) {
+          throw new Error(`OpenPAYGO device ${serialNum} does not have a secret key.`);
+        }
+        console.log({ openpaygo_secret_key, remainingDays, openpaygo_token_count });
+        const { updatedCount, token: generatedToken } = generateToken(openpaygo_secret_key, remainingDays, openpaygo_token_count, TokenType.COUNTER_SYNC);
+        token = generatedToken;
+        openpaygo_token_count = updatedCount; // Update for later database write
+        console.log(`Generated OpenPAYGO code for device ${serialNum}: ${token}`);
+        // Update token count in ray_devices
+        await client.query('UPDATE ray_devices SET openpaygo_token_count = $1 WHERE id = $2', [openpaygo_token_count, deviceId]);
+      } else if (manufacturer === 'beebeejump' && isNonTokenised) {
+        // For non-tokenised BeeBeeJump devices, generate a random 6-digit token
+        token = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log(`Generated non-tokenised BeeBeeJump device token: ${token}`);
+      } else {
+        throw new Error(`Token generation for unsupported manufacturer: '${manufacturer}'`);
+      }
+    } else {
+      throw new Error(`Could not find serial number for device ${deviceId}. Cannot generate token.`);
+    }
+
+    if (!token) {
+      token = Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    // Insert token record
+    await client.query(
+      'INSERT INTO ray_tokens (user_id, token, expires_at, business_id, device_id) VALUES ($1, $2, $3, $4, $5)',
+      [customerId, token, new Date(now.getTime() + remainingDays * 24 * 60 * 60 * 1000), businessId, deviceId]
+    );
+
+    // Send SMS (optional, depending on whether we want to send SMS for replacement tokens)
+    const user = await client.query('SELECT phone_number FROM ray_users WHERE id = $1 AND business_id = $2', [customerId, businessId]);
+    const userContact = user.rows[0] ? user.rows[0].phone_number : null;
+
+    if (userContact && credentials.africastalking_api_key) {
+      const message = `Your new device activation code is: ${token}. Valid for ${remainingDays} days.`;
+      await sendSMS(userContact, message, credentials);
+      console.log(`Activation code ${token} sent to user ${customerId} via SMS for replacement.`);
+    }
+
+    return token;
+
+  } catch (error) {
+    console.error('Error generating device token for replacement:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   handleSuccessfulPayment,
+  generateDeviceTokenForReplacement,
 };

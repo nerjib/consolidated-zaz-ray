@@ -154,6 +154,14 @@ router.post('/login', async (req, res) => {
       },
     };
     await query('UPDATE ray_users SET last_active = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
+    let businessInfo = null;
+    if (user.business_id) {
+        const businessResult = await query('SELECT name FROM businesses WHERE id = $1', [user.business_id]);
+        if (businessResult.rows.length > 0) {
+            businessInfo = businessResult.rows[0];
+        }
+    }
+
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
@@ -162,7 +170,7 @@ router.post('/login', async (req, res) => {
         if (err) throw err;
         // Return user object without the password hash
         delete user.password;
-        res.json({ token, user: user, permissions});
+        res.json({ token, user: user, permissions, business: businessInfo });
       }
     );
   } catch (err) {

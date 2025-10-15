@@ -9,7 +9,7 @@ const can = require('../middleware/can');
 // @desc    Add a new device type to the business
 // @access  Private (Admin only)
 router.post('/', auth, authorize('admin'), async (req, res) => {
-  const { device_name, manufacturer, device_model, pricing, category, default_down_payment, token_validity_days } = req.body;
+  const { device_name, manufacturer, device_model, pricing, category, default_down_payment, token_validity_days, onetime_commission_rate } = req.body;
   const { business_id } = req.user;
 
   try {
@@ -19,8 +19,8 @@ router.post('/', auth, authorize('admin'), async (req, res) => {
     }
 
     const newDeviceType = await query(
-      'INSERT INTO ray_device_types (device_name, manufacturer, device_model, pricing, business_id, category, default_down_payment, token_validity_days) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;',
-      [device_name, manufacturer, device_model, pricing, business_id, category, default_down_payment, token_validity_days]
+      'INSERT INTO ray_device_types (device_name, manufacturer, device_model, pricing, business_id, category, default_down_payment, token_validity_days, onetime_commission_rate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *;',
+      [device_name, manufacturer, device_model, pricing, business_id, category, default_down_payment, token_validity_days, onetime_commission_rate]
     );
     res.json({ msg: 'Device type added successfully', deviceType: newDeviceType.rows[0] });
   } catch (err) {
@@ -48,13 +48,13 @@ router.get('/', auth, can('device-type:read',), async (req, res) => {
 // @access  Private (Admin only)
 router.put('/:id', auth, authorize('admin'), async (req, res) => {
   const { id } = req.params;
-  const { device_name, manufacturer, device_model, pricing, category, default_down_payment, token_validity_days } = req.body;
+  const { device_name, manufacturer, device_model, pricing, category, default_down_payment, token_validity_days, onetime_commission_rate } = req.body;
   const { business_id } = req.user;
 
   try {
     const updatedDeviceType = await query(
-      'UPDATE ray_device_types SET device_name = $1, manufacturer = $2, device_model = $3, pricing = $4, updated_at = CURRENT_TIMESTAMP, category = $7, default_down_payment = $8, token_validity_days = $9  WHERE id = $5 AND business_id = $6 RETURNING *;',
-      [device_name, manufacturer, device_model, pricing, id, business_id, category, default_down_payment, token_validity_days]
+      'UPDATE ray_device_types SET device_name = $1, manufacturer = $2, device_model = $3, pricing = $4, updated_at = CURRENT_TIMESTAMP, category = $7, default_down_payment = $8, token_validity_days = $9, onetime_commission_rate = $10  WHERE id = $5 AND business_id = $6 RETURNING *;',
+      [device_name, manufacturer, device_model, pricing, id, business_id, category, default_down_payment, token_validity_days, onetime_commission_rate]
     );
 
     if (updatedDeviceType.rows.length === 0) {

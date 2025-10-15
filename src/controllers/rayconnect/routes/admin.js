@@ -282,6 +282,11 @@ router.post('/reconcile-credit', auth, can('agent:manage:credit'), async (req, r
     }
 
     const oldBalance = parseFloat(targetUser.rows[0].credit_balance);
+
+    if (amount > oldBalance) {
+      return res.status(400).json({ msg: 'Reconciliation amount cannot be greater than the user credit balance.' });
+    }
+
     const newBalance = oldBalance - amount;
 
     await query('UPDATE ray_users SET credit_balance = $1 WHERE id = $2 AND business_id = $3', [newBalance, user_id, business_id]);

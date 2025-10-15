@@ -75,11 +75,10 @@ router.get('/revenue-overview', auth, can('analytics:read:business'), async (req
   try {
     // Expected revenue for the current month from active and overdue loans
     const expectedRevenueQuery = `
-      SELECT COALESCE(SUM(payment_amount_per_cycle), 0) as total
+      SELECT COALESCE(SUM(payment_cycle_amount), 0) as total
       FROM ray_loans
       WHERE business_id = $1
-        AND status IN ('active', 'overdue')
-        AND DATE_TRUNC('month', next_payment_date) = DATE_TRUNC('month', CURRENT_DATE);
+        AND status IN ('active', 'overdue');
     `;
     const expectedRevenueResult = await query(expectedRevenueQuery, [business_id]);
     const expectedRevenue = parseFloat(expectedRevenueResult.rows[0].total);

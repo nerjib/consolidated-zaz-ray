@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const can = require('../middleware/can');
-const { query } = require('../config/database');
+const { query, pool } = require('../config/database'); // Import pool for transactions
 const multer = require('multer');
 const xlsx = require('xlsx');
 const path = require('path');
+const { generateDeviceTokenForReplacement } = require('../services/paymentService'); // Import the new helper
 
 // Configure multer for file uploads
 const upload = multer({
@@ -199,6 +200,125 @@ router.post('/upload-excel', auth, can('device:create'), upload.single('excelFil
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT api/devices/replace
+// @desc    Replace an old device with a new one on an existing loan
+// @access  Private (device:manage)
+router.put('/replace', auth, can('loan:update'), async (req, res) => {
+  const { old_device_id, new_device_serial_number } = req.body;
+  const { business_id, id: userId } = req.user; // Get userId for logging
+
+  let client; // Declare client here for finally block
+
+  try {
+    // 1. Validate Input
+    if (!old_device_id || !new_device_serial_number) {
+      return res.status(400).json({ msg: 'Old device ID and new device serial number are required.' });
+    }
+
+    client = await pool.connect(); // Get client from pool for transaction
+    await client.query('BEGIN');
+
+    // 2. Fetch Old Device
+    const oldDeviceResult = await client.query( // Use client for transaction
+      `SELECT
+         d.id, d.status, d.assigned_to, d.assigned_by, d.super_agent_id, d.first_time_commission_paid,
+         l.id AS loan_id, l.customer_id
+       FROM ray_devices d
+       LEFT JOIN ray_loans l ON d.id = l.device_id
+       WHERE d.id = $1 AND d.business_id = $2 FOR UPDATE OF d`, // FOR UPDATE to lock rows
+      [old_device_id, business_id]
+    );
+
+    if (oldDeviceResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ msg: 'Old device not found in your business.' });
+    }
+    const oldDevice = oldDeviceResult.rows[0];
+
+    if (oldDevice.status !== 'assigned' || !oldDevice.loan_id) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ msg: 'Old device is not assigned or does not have an active loan.' });
+    }
+
+    // 3. Fetch New Device
+    const newDeviceResult = await client.query( // Use client for transaction
+      'SELECT id, status FROM ray_devices WHERE serial_number = $1 AND business_id = $2 FOR UPDATE', // FOR UPDATE to lock rows
+      [new_device_serial_number, business_id]
+    );
+
+    if (newDeviceResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ msg: 'New device not found in your business.' });
+    }
+    const newDevice = newDeviceResult.rows[0];
+
+    if (newDevice.status !== 'available') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ msg: 'New device is not available for assignment.' });
+    }
+
+    // 4. Update Loan Record: Link the existing loan to the new device
+    await client.query( // Use client for transaction
+      'UPDATE ray_loans SET device_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [newDevice.id, oldDevice.loan_id]
+    );
+
+    // 5. Update Old Device Status
+    await client.query( // Use client for transaction
+      `UPDATE ray_devices
+       SET status = $1, assigned_to = NULL, assigned_by = NULL, super_agent_id = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      ['replaced', oldDevice.id]
+    );
+
+    // 6. Update New Device Assignment and transfer first_time_commission_paid
+    await client.query( // Use client for transaction
+      `UPDATE ray_devices
+       SET status = $1, assigned_to = $2, assigned_by = $3, super_agent_id = $4, first_time_commission_paid = $5, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6`,
+      ['assigned', oldDevice.assigned_to, oldDevice.assigned_by, oldDevice.super_agent_id, oldDevice.first_time_commission_paid, newDevice.id]
+    );
+
+    // 7. Generate new token for the new device
+    const generatedToken = await generateDeviceTokenForReplacement(client, newDevice.id, business_id, oldDevice.loan_id);
+
+    // 8. Log Device Replacement Event
+    await client.query( // Use client for transaction
+      `INSERT INTO ray_device_history (device_id, business_id, changed_by, previous_status, new_status, reason, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [oldDevice.id, business_id, userId, oldDevice.status, 'replaced', 'Device Replacement', `Old device ${oldDevice.id} replaced by new device ${newDevice.id}. Loan ${oldDevice.loan_id} transferred.`]
+    );
+    await client.query( // Log for the new device as well
+      `INSERT INTO ray_device_history (device_id, business_id, changed_by, previous_status, new_status, reason, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [newDevice.id, business_id, userId, newDevice.status, 'assigned', 'Device Replacement', `New device ${newDevice.id} replaced old device ${oldDevice.id}. Loan ${oldDevice.loan_id} transferred. Generated token: ${generatedToken}`]
+    );
+
+
+    // Commit the transaction
+    await client.query('COMMIT');
+
+    res.json({
+      msg: 'Device replaced successfully',
+      old_device_id: oldDevice.id,
+      new_device_id: newDevice.id,
+      loan_id: oldDevice.loan_id,
+      generated_token: generatedToken,
+    });
+
+  } catch (err) {
+    if (client) {
+      await client.query('ROLLBACK'); // Rollback on any error
+    }
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  } finally {
+    if (client) {
+      client.release(); // Release client back to pool
+    }
   }
 });
 
