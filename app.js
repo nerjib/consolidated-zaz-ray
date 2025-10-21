@@ -31,6 +31,7 @@ const Beauty = require('./src/controllers/beau.js')
 const BeuLogin = require('./src/controllers/auth/beuSignIn.js')
 const BeuSignUp = require('./src/controllers/auth/beuSignup.js')
 const RayRoutes = require('./src/controllers/rayconnect/rayroute.js')
+const RefundRoutes = require('./src/controllers/zazzau/routes/refunds.js')
 
 
 
@@ -114,10 +115,10 @@ app.use((req, res, next) => {
   
 db.sequelize.sync()
   .then(() => {
-    console.log("Synced db.");
+    console.log("Synced db.>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<");
   })
   .catch((err) => {
-    console.log("Failed to sync db: " + err.message);
+    console.log("Failed to sync db:))))))))))))))))))) " + err.message);
   });
 
      
@@ -144,6 +145,7 @@ app.use('/api/v1/beauty', Beauty)
 app.use('/api/v1/beauty/login', BeuLogin);
 app.use('/api/v1/beauty/signup', BeuSignUp);
 app.use('/ray-services', RayRoutes)
+app.use('/api/v1/refunds', RefundRoutes)
 
 
 

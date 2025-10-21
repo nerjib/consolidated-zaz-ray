@@ -24,6 +24,7 @@ router.post('/', async (req, res) => {
 
     }
     const { rows } = await db.query(text, [userId]);
+    console.log({rows: rows[0]})
     if (!rows[0]) {
       // console.log('user not');
       return res.status(402).send({ status:false, message: 'Bad Credentials' });

@@ -26,7 +26,18 @@ module.exports = (sequelize, Sequelize) => {
       },
       command: {
         type: Sequelize.STRING,
+      },
+      status: {
+        type: Sequelize.STRING,
+        defaultValue: 'paid'
       }
+    }, {
+      indexes: [
+        {
+          unique: true,
+          fields: ['ippis', 'period']
+        }
+      ]
     });
     return PaymentModel;
   };

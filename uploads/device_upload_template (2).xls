@@ -1,0 +1,12 @@
+<html>
+<body>
+  <table>
+    <thead>
+      <tr>
+        <th>serial_number</th>
+        <th>device_type_id</th>
+      </tr>
+    </thead>
+  </table>
+</body>
+</html>

@@ -43,5 +43,6 @@ db.wholesales = require("./wholesale.model.js")(sequelize, Sequelize);
 db.reviews = require("./reviews.model.js")(sequelize, Sequelize);
 db.consults = require("./consult.model.js")(sequelize, Sequelize);
 db.requests = require("./request.model.js")(sequelize, Sequelize);
+db.refunds = require("./refund.model.js")(sequelize, Sequelize);
 
 module.exports = db;

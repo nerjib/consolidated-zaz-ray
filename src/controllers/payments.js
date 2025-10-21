@@ -8,6 +8,7 @@ const cloudinary = require('./cloudinary')
 const Helper = require('./helpers/pagination')
 const db2 = require("../../models");
 const Payment = db2.payments;
+const Refund = db2.refunds;
 
 
 
@@ -234,6 +235,51 @@ router.get('/', async (req, res) => {
   }
 
   });
+
+
+  router.get('/summary', async (req, res) => {
+    try {
+        const totalPaid = await Payment.sum('amount');
+        const totalRefunded = await Refund.sum('amount');
+
+        return res.status(200).send({
+            status: true,
+            data: {
+                totalPaid: totalPaid || 0,
+                totalRefunded: totalRefunded || 0,
+            }
+        });
+    } catch (error) {
+        return res.status(500).send({
+            status: false,
+            message: "Error retrieving payment summary.",
+            error: error.message
+        });
+    }
+});
+
+  router.get('/summary/:ippis', async (req, res) => {
+    const { ippis } = req.params;
+
+    try {
+        const totalPaid = await Payment.sum('amount', { where: { ippis } });
+        const totalRefunded = await Refund.sum('amount', { where: { payment_ippis: ippis } });
+
+        return res.status(200).send({
+            status: true,
+            data: {
+                totalPaid: totalPaid || 0,
+                totalRefunded: totalRefunded || 0,
+            }
+        });
+    } catch (error) {
+        return res.status(500).send({
+            status: false,
+            message: `Error retrieving payment summary for ippis: ${ippis}`,
+            error: error.message
+        });
+    }
+});
 
 
   module.exports = router;
