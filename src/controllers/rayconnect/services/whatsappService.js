@@ -122,8 +122,44 @@ const sendPaymentReceiptMessage = async (to, name, amount, cycle_amount, company
   return sendWhatsAppTemplateMessage(to, templateName, components, 'en');
 };
 
+const sendVirtualAccountCreationLoanMessage = async (to, name, account_number, bank, account_name, business_name) => {
+  const templateName = 'virtual_account';
+  const components = [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: name },
+        { type: 'text', text: account_number },
+        { type: 'text', text: bank },
+        { type: 'text', text: account_name },
+        { type: 'text', text: business_name },
+      ],
+    },
+  ];
+  return sendWhatsAppTemplateMessage(to, templateName, components, 'en_US');
+};
+
+const sendAgentCreditTopUpMessage = async (to, name, account_number, bank, account_name, business_name) => {
+  const templateName = 'agent_account';
+  const components = [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: name },
+        { type: 'text', text: account_number },
+        { type: 'text', text: bank },
+        { type: 'text', text: account_name },
+        { type: 'text', text: business_name },
+      ],
+    },
+  ];
+  return sendWhatsAppTemplateMessage(to, templateName, components, 'en');
+};
+
 module.exports = {
   sendAgentCreationMessage,
   sendPaymentDoneMessage,
   sendPaymentReceiptMessage,
+  sendVirtualAccountCreationLoanMessage,
+  sendAgentCreditTopUpMessage,
 };

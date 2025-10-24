@@ -5,7 +5,7 @@ const authorize = require('../middleware/authorization');
 const { query } = require('../config/database');
 const axios = require('axios');
 const { handleSuccessfulPayment } = require('../services/paymentService');
-const { sendPaymentReceiptMessage } = require('../services/whatsappService');
+const { sendPaymentReceiptMessage, sendVirtualAccountCreationLoanMessage, sendAgentCreditTopUpMessage } = require('../services/whatsappService');
 const crypto = require('crypto');
 const { getBusinessCredentials } = require('../services/utils');
 const can = require('../middleware/can');
@@ -353,6 +353,23 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
           [account.customer.customer_code, userId]
         );
       }
+      const customerResult = await query('SELECT * FROM ray_users WHERE id = $1', [userId]);
+      const businessResult = await query('SELECT * FROM businesses WHERE id = $1', [business_id]);
+       // Send WhatsApp message
+       (async () => {
+        try {
+          await sendAgentCreditTopUpMessage(
+            customerResult.rows[0].phone_number,
+            customerResult.rows[0].name,
+            account.account_number,
+            account.bank.name,
+            account.account_name,
+            businessResult.rows[0].name
+          );
+        } catch (err) {
+          console.error(`Error sending WhatsApp message for user ${user.id}:`, err);
+        }
+      })();
       console.log(`Created dedicated account ${account.account_number} for user ${userId}`);
     }
   } else if (event.event === 'dedicatedaccount.assign.success' && type === 'loan_repayment') {
@@ -369,7 +386,24 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
           [account.customer.customer_code, loanId]
         );
       }
+      const customerResult = await query('SELECT * FROM ray_users WHERE id = $1', [userId]);
+      const businessResult = await query('SELECT * FROM businesses WHERE id = $1', [business_id]);
       console.log(`Created dedicated account ${account.account_number} for loan ${loanId}`);
+      (async () => {
+        try {
+          await sendVirtualAccountCreationLoanMessage(
+            customerResult.rows[0].phone_number,
+            customerResult.rows[0].name,
+            account.customer.last_name,
+            account.account_number,
+            account.bank.name,
+            account.account_name,
+            businessResult.rows[0].name
+          );
+        } catch (err) {
+          console.error(`Error sending WhatsApp message for loan ${loan.id}:`, err);
+        }
+      })();
     }
   }
 

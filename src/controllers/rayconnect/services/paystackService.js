@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { getBusinessCredentials } = require('./utils');
 const { query } = require('../config/database');
+const { sendVirtualAccountCreationLoanMessage, sendAgentCreditTopUpMessage } = require('./whatsappService');
 
 const PAYSTACK_API_URL = 'https://api.paystack.co';
 
@@ -107,6 +108,22 @@ const createDedicatedAccount = async (loan, customer, business) => {
         );
       }
       console.log(`Created dedicated account ${account.account_number} for loan ${loan.id}`);
+
+      // Send WhatsApp message
+      (async () => {
+        try {
+          await sendVirtualAccountCreationLoanMessage(
+            customer.phone_number,
+            customer.name || customer.username,
+            account.account_number,
+            account.bank.name,
+            account.account_name,
+            business.name
+          );
+        } catch (err) {
+          console.error(`Error sending WhatsApp message for loan ${loan.id}:`, err);
+        }
+      })();
     }
   } catch (error) {
     console.error(`Paystack error creating dedicated account for loan ${loan.id}:`, error.response ? error.response.data : error.message);
@@ -162,6 +179,22 @@ const createDedicatedAccountForUser = async (user, business) => {
         );
       }
       console.log(`Created dedicated account ${account.account_number} for user ${user.id}`);
+
+      // Send WhatsApp message
+      (async () => {
+        try {
+          await sendAgentCreditTopUpMessage(
+            user.phone_number,
+            user.name || user.username,
+            account.account_number,
+            account.bank.name,
+            account.account_name,
+            business.name
+          );
+        } catch (err) {
+          console.error(`Error sending WhatsApp message for user ${user.id}:`, err);
+        }
+      })();
     }
   } catch (error) {
     console.error(`Paystack error creating dedicated account for user ${user.id}:`, error.response ? error.response.data : error.message);
