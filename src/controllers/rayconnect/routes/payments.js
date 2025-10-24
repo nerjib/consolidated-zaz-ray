@@ -229,7 +229,7 @@ router.post('/paystack/initiate', auth,  async (req, res) => {
 router.post('/paystack/webhook', async (req, res) => {
   const event = req.body;
   const business_id = event.data.metadata ? event.data.metadata.business_id : null;
-
+  console.log({event});
   if (!business_id) {
     console.error('Webhook Error: business_id not found in metadata');
     return res.status(400).send('Webhook error: Missing business identifier.');
