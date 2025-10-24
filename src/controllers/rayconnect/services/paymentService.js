@@ -1,5 +1,6 @@
 const { query } = require('../config/database');
 const { sendSMS } = require('./smsService');
+const { sendPaymentDoneMessage } = require('./whatsappService');
 const { generateBioliteCode } = require('./bioliteService');
 const { getActivationCode } = require('./beebeeService');
 const { generateToken, TokenType } = require('./openPayGoService');
@@ -11,6 +12,9 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
     if (!credentials) {
       throw new Error(`Could not retrieve credentials for business ${business_id}`);
     }
+
+    const businessResult = await query('SELECT name FROM businesses WHERE id = $1', [business_id]);
+    const businessName = businessResult.rows[0] ? businessResult.rows[0].name : '';
 
     let token = null;
     let tokenExpirationDays = 30;
@@ -104,13 +108,22 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
       [userId, token, paymentId, tokenExpirationDays ? new Date(Date.now() + tokenExpirationDays * 24 * 60 * 60 * 1000) : null, business_id]
     );
 
-    const user = await client.query('SELECT phone_number FROM ray_users WHERE id = $1 AND business_id = $2', [userId, business_id]);
+    const user = await client.query('SELECT username, phone_number FROM ray_users WHERE id = $1 AND business_id = $2', [userId, business_id]);
     const userContact = user.rows[0] ? user.rows[0].phone_number : null;
+    const userName = user.rows[0] ? user.rows[0].username : null;
 
     if (userContact && credentials.africastalking_api_key) {
       const message = `Your PayGo activation code is: ${token}. Amount paid: ${amount}. ${tokenExpirationDays ? `Valid for ${tokenExpirationDays} days.` : 'This is a permanent unlock code.'}`;
       await sendSMS(userContact, message, credentials);
       console.log(`Activation code ${token} sent to user ${userId} via SMS ${tokenExpirationDays ? `${tokenExpirationDays} days` : 'permanently'}.`);
+    }
+
+    if (userContact && userName) {
+        try {
+            await sendPaymentDoneMessage(userContact, userName, amount, deviceId, token, tokenExpirationDays, businessName);
+        } catch (err) {
+            console.error(`Error sending WhatsApp message for payment ${paymentId}:`, err);
+        }
     }
 
     const assignedDevices = await client.query(

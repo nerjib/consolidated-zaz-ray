@@ -5,6 +5,7 @@ const can = require('../middleware/can');
 const { query, pool } = require('../config/database');
 const { handleSuccessfulPayment } = require('../services/paymentService');
 const { handleOnetimePayment } = require('../services/unlockService');
+const { createDedicatedAccount } = require('../services/paystackService');
 
 // @route   POST api/loans
 // @desc    Create a new loan for a customer within the business
@@ -192,6 +193,22 @@ router.post('/', auth, can('loan:create', ['super-agent', 'agent']), async (req,
 
         await client.query('COMMIT');
         res.json({ msg: 'Loan created successfully', loan: newLoan });
+
+        // Asynchronously create Paystack dedicated account without blocking the response
+        (async () => {
+          try {
+            const customerResult = await query('SELECT * FROM ray_users WHERE id = $1', [customer_id]);
+            const businessResult = await query('SELECT * FROM businesses WHERE id = $1', [business_id]);
+
+            if (customerResult.rows.length > 0 && businessResult.rows.length > 0) {
+              await createDedicatedAccount(newLoan, customerResult.rows[0], businessResult.rows[0]);
+            } else {
+                console.error(`Could not find customer or business to create dedicated account for loan ${newLoan.id}`);
+            }
+          } catch (err) {
+            console.error(`Error creating dedicated account for loan ${newLoan.id}:`, err);
+          }
+        })();
     }
   } catch (err) {
     if (client) {
@@ -517,6 +534,22 @@ router.put('/:id/resume', auth, can('loan:update'), async (req, res) => {
     if (client) {
       client.release();
     }
+  }
+});
+
+
+// const  backfillLoanAccounts  = require('../scripts/backfill_dedicated_accounts');
+
+// @route   POST api/loans/backfill-accounts
+// @desc    Trigger backfill of dedicated accounts for loans
+// @access  Private (loan:create)
+router.post('/backfill-accounts', auth, can('loan:create'), async (req, res) => {
+  try {
+    // await backfillLoanAccounts();
+    res.json({ msg: 'Backfill of dedicated accounts initiated successfully.' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 });
 

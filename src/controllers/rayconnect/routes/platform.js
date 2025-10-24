@@ -321,4 +321,39 @@ router.get('/analytics/businesses/:id', auth, authorize('platform_owner'), async
   }
 });
 
+// @route   PUT api/platform/businesses/:id/subaccount
+// @desc    Add or update a business's Paystack subaccount code
+// @access  Private (Platform Owner or Admin of the business)
+router.put('/businesses/:id/subaccount', auth, authorize('admin', 'platform_owner'), async (req, res) => {
+    const { id: businessId } = req.params;
+    const { paystack_subaccount_code } = req.body;
+    const { id: requesterId, role: requesterRole, business_id: requesterBusinessId } = req.user;
+
+    if (!paystack_subaccount_code) {
+        return res.status(400).json({ msg: 'Paystack subaccount code is required.' });
+    }
+
+    try {
+        // If the user is an admin, they can only update their own business
+        if (requesterRole === 'admin' && requesterBusinessId !== businessId) {
+            return res.status(403).json({ msg: 'Access Denied: You can only update your own business.' });
+        }
+
+        const updatedBusiness = await query(
+            `UPDATE businesses SET 
+                paystack_subaccount_code = $1
+             WHERE id = $2 RETURNING id, name, paystack_subaccount_code`,
+            [paystack_subaccount_code, businessId]
+        );
+
+        if (updatedBusiness.rows.length === 0) {
+            return res.status(404).json({ msg: 'Business not found.' });
+        }
+        res.json({ msg: 'Paystack subaccount code updated successfully', business: updatedBusiness.rows[0] });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;

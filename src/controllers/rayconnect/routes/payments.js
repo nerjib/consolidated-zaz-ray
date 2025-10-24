@@ -5,6 +5,7 @@ const authorize = require('../middleware/authorization');
 const { query } = require('../config/database');
 const axios = require('axios');
 const { handleSuccessfulPayment } = require('../services/paymentService');
+const { sendPaymentReceiptMessage } = require('../services/whatsappService');
 const crypto = require('crypto');
 const { getBusinessCredentials } = require('../services/utils');
 const can = require('../middleware/can');
@@ -75,6 +76,23 @@ router.post('/manual', auth, can('payment:create:manual'), async (req, res) => {
     } else {
       await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [newAccumulatedPayment, loan_id]);
       const remainingAmount = loan.payment_cycle_amount - newAccumulatedPayment;
+
+      // Asynchronously send WhatsApp message
+      (async () => {
+        try {
+          const userResult = await query('SELECT username, phone_number FROM ray_users WHERE id = $1', [user_id]);
+          const businessResult = await query('SELECT name FROM businesses WHERE id = $1', [business_id]);
+          const user = userResult.rows[0];
+          const business = businessResult.rows[0];
+
+          if (user && business) {
+            await sendPaymentReceiptMessage(user.phone_number, user.username, amount, loan.payment_cycle_amount, business.name);
+          }
+        } catch (err) {
+          console.error(`Error sending WhatsApp receipt for payment ${newPayment.rows[0].id}:`, err);
+        }
+      })();
+
       res.json({ msg: `Manual payment recorded successfully. Partial payment received. ${remainingAmount.toFixed(2)} needed for next cycle.`, payment: newPayment.rows[0], remainingAmount });
     }
 
@@ -283,6 +301,132 @@ router.post('/paystack/webhook', async (req, res) => {
     } finally {
       client.release();
     }
+  }
+});
+
+// @route   POST api/payments/paystack/dedicated-webhook
+// @desc    Paystack webhook for Dedicated Virtual Account payments
+// @access  Public
+router.post('/paystack/dedicated-webhook', async (req, res) => {
+  const event = req.body;
+
+  // It's crucial to get business_id from a reliable source in the payload.
+  // Assuming it's in metadata as we designed.
+  const business_id = event.data.metadata ? event.data.metadata.business_id : null;
+
+  if (!business_id) {
+    console.error('Webhook Error: business_id not found in dedicated account webhook metadata');
+    return res.status(400).send('Webhook error: Missing business identifier.');
+  }
+
+  const credentials = await getBusinessCredentials(business_id);
+  if (!credentials || !credentials.paystack_secret_key) {
+    console.error(`Webhook Error: Paystack not configured for business ${business_id}`);
+    return res.status(400).send('Webhook error: Business configuration not found.');
+  }
+
+  // Verify the webhook signature
+  const hash = crypto.createHmac('sha512', credentials.paystack_secret_key).update(JSON.stringify(req.body)).digest('hex');
+  if (hash !== req.headers['x-paystack-signature']) {
+    console.warn(`Invalid Paystack signature for business ${business_id}`);
+    return res.status(400).send('Invalid signature');
+  }
+
+  // Process only successful charges
+  if (event.event === 'charge.success') {
+    const { reference, amount, currency, authorization, metadata } = event.data;
+    const accountNumber = authorization.receiver_bank_account_number;
+
+    if (!accountNumber) {
+        console.error('Webhook Error: Could not find receiver_bank_account_number in payload.');
+        return res.status(400).send('Payload missing account number.');
+    }
+
+    const { pool } = require('../config/database');
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      // Check if this transaction has already been processed
+      const existingPayment = await client.query('SELECT id FROM ray_payments WHERE transaction_id = $1 AND business_id = $2', [reference, business_id]);
+      if (existingPayment.rows.length > 0) {
+        await client.query('ROLLBACK');
+        console.log(`Webhook Info: Payment reference ${reference} already processed.`);
+        return res.status(200).send('Payment already processed');
+      }
+
+      // Determine if the account belongs to a loan or a user (agent)
+      const loanResult = await client.query(
+        'SELECT id, customer_id, payment_cycle_amount, current_cycle_accumulated_payment FROM ray_loans WHERE paystack_dedicated_account_number = $1 AND business_id = $2 FOR UPDATE',
+        [accountNumber, business_id]
+      );
+
+      if (loanResult.rows.length > 0) {
+        // It's a LOAN REPAYMENT
+        const loan = loanResult.rows[0];
+        const user_id = loan.customer_id;
+        const loan_id = loan.id;
+        const paymentAmount = amount / 100;
+
+        const newPayment = await client.query(
+          'INSERT INTO ray_payments (user_id, amount, currency, payment_method, transaction_id, status, loan_id, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;',
+          [user_id, paymentAmount, currency, 'paystack_dedicated', reference, 'completed', loan_id, business_id]
+        );
+
+        const newAccumulatedPayment = parseFloat(loan.current_cycle_accumulated_payment) + paymentAmount;
+        if (newAccumulatedPayment >= loan.payment_cycle_amount) {
+          const numCyclesPaid = Math.floor(newAccumulatedPayment / loan.payment_cycle_amount);
+          const amountForCycles = numCyclesPaid * loan.payment_cycle_amount;
+          const excessAmount = newAccumulatedPayment - amountForCycles;
+
+          await handleSuccessfulPayment(client, user_id, amountForCycles, newPayment.rows[0].id, loan_id, business_id);
+          await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
+        } else {
+          await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [newAccumulatedPayment, loan_id]);
+        }
+        console.log(`Successfully processed dedicated account payment ${reference} for loan ${loan_id}`);
+
+      } else {
+        // Check if it's an AGENT CREDIT TOP-UP
+        const userResult = await client.query(
+          'SELECT id, credit_balance FROM ray_users WHERE paystack_dedicated_account_number = $1 AND business_id = $2 FOR UPDATE',
+          [accountNumber, business_id]
+        );
+
+        if (userResult.rows.length > 0) {
+          const user = userResult.rows[0];
+          const topUpAmount = amount / 100;
+          const newBalance = parseFloat(user.credit_balance) + topUpAmount;
+
+          await client.query('UPDATE ray_users SET credit_balance = $1 WHERE id = $2', [newBalance, user.id]);
+
+          await client.query(
+            'INSERT INTO ray_credit_transactions (user_id, transaction_type, amount, new_balance, description, created_by, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [user.id, 'credit_topup', topUpAmount, newBalance, `Paystack top-up via dedicated account. Ref: ${reference}`, user.id, business_id]
+          );
+           console.log(`Successfully processed credit top-up of ${topUpAmount} for user ${user.id}`);
+
+        } else {
+          await client.query('ROLLBACK');
+          console.error(`Webhook Error: No loan or user found for dedicated account number ${accountNumber}`);
+          return res.status(404).send('No loan or user found for dedicated account.');
+        }
+      }
+
+      await client.query('COMMIT');
+      res.status(200).send('Webhook received and payment processed');
+
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('Webhook processing error for dedicated account:', err);
+      res.status(500).send('Internal Server Error');
+    } finally {
+      client.release();
+    }
+  } else {
+    // Acknowledge other events without processing
+    res.status(200).send('Webhook received');
   }
 });
 

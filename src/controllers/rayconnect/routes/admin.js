@@ -4,6 +4,8 @@ const auth = require('../middleware/auth');
 const can = require('../middleware/can');
 const bcrypt = require('bcryptjs');
 const { query } = require('../config/database');
+const { createDedicatedAccountForUser } = require('../services/paystackService');
+const { sendAgentCreationMessage } = require('../services/whatsappService');
 
 // @route   POST api/admin/create-agent
 // @desc    Create a new agent for the business
@@ -38,6 +40,30 @@ router.post('/create-agent', auth, can('user:manage', ['super-agent']), async (r
     );
 
     res.json({ msg: 'Agent created successfully', agent: newAgent.rows[0] });
+
+    // Asynchronously send WhatsApp message
+    (async () => {
+      try {
+        const agent = newAgent.rows[0];
+        const businessResult = await query('SELECT name FROM businesses WHERE id = $1', [business_id]);
+        const businessName = businessResult.rows[0] ? businessResult.rows[0].name : '';
+        await sendAgentCreationMessage(agent.phone_number, agent.username, businessName);
+      } catch (err) {
+        console.error(`Error sending WhatsApp message for agent ${newAgent.rows[0].id}:`, err);
+      }
+    })();
+
+    // Asynchronously create Paystack dedicated account
+    (async () => {
+      try {
+        const businessResult = await query('SELECT * FROM businesses WHERE id = $1', [business_id]);
+        if (businessResult.rows.length > 0) {
+          await createDedicatedAccountForUser(newAgent.rows[0], businessResult.rows[0]);
+        }
+      } catch (err) {
+        console.error(`Error creating dedicated account for agent ${newAgent.rows[0].id}:`, err);
+      }
+    })();
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -75,6 +101,18 @@ router.post('/create-super-agent', auth, can('user:manage'), async (req, res) =>
     );
 
     res.json({ msg: 'Super-agent created successfully', superAgent: newSuperAgent.rows[0] });
+
+    // Asynchronously create Paystack dedicated account
+    (async () => {
+      try {
+        const businessResult = await query('SELECT * FROM businesses WHERE id = $1', [business_id]);
+        if (businessResult.rows.length > 0) {
+          await createDedicatedAccountForUser(newSuperAgent.rows[0], businessResult.rows[0]);
+        }
+      } catch (err) {
+        console.error(`Error creating dedicated account for super-agent ${newSuperAgent.rows[0].id}:`, err);
+      }
+    })();
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
