@@ -347,10 +347,10 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
         [account.account_number, account.bank.name, account.account_name, userId]
       );
 
-      if (account.customer && account.customer.customer_code && !user.paystack_customer_code) {
+      if (account.customer && account.customer.customer_code) {
         await query(
           'UPDATE ray_users SET paystack_customer_code = $1 WHERE id = $2',
-          [account.customer.customer_code, user.id]
+          [account.customer.customer_code, userId]
         );
       }
       console.log(`Created dedicated account ${account.account_number} for user ${userId}`);
@@ -363,12 +363,12 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
         [account.account_number, account.bank.name, account.account_name, loanId]
       );
 
-      // if (account.customer && account.customer.customer_code && !customer.paystack_customer_code) {
-      //   await query(
-      //     'UPDATE ray_users SET paystack_customer_code = $1 WHERE id = $2',
-      //     [account.customer.customer_code, userId]
-      //   );
-      // }
+      if (account.customer && account.customer.customer_code) {
+        await query(
+          'UPDATE ray_loans SET paystack_customer_code = $1 WHERE id = $2',
+          [account.customer.customer_code, loanId]
+        );
+      }
       console.log(`Created dedicated account ${account.account_number} for loan ${loanId}`);
     }
   }
