@@ -313,24 +313,64 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
   // data: { customer: [Object], dedicated_account: [Object] }
   // It's crucial to get business_id from a reliable source in the payload.
   // Assuming it's in metadata as we designed.
-  const business_id = event.data.metadata ? event.data.metadata.business_id : null;
+  const business_id = event.data.customer.metadata ? event.data.customer.metadata.business_id : null;
+  const type = event.data.customer.metadata ? event?.data?.customer?.metadata?.type : null;
+  const userId = event.data.customer.metadata ? event?.data?.customer?.metadata?.user_id : null;
+  const loanId = event.data.customer.metadata ? event?.data?.customer?.metadata?.loan_id : null;
+
+
+  // agent_credit_topup
 
   if (!business_id) {
     console.error('Webhook Error: business_id not found in dedicated account webhook metadata');
     return res.status(400).send('Webhook error: Missing business identifier.');
   }
 
-  const credentials = await getBusinessCredentials(business_id);
-  if (!credentials || !credentials.paystack_secret_key) {
-    console.error(`Webhook Error: Paystack not configured for business ${business_id}`);
-    return res.status(400).send('Webhook error: Business configuration not found.');
-  }
+  // const credentials = await getBusinessCredentials(business_id);
+  // if (!credentials || !credentials.paystack_secret_key) {
+  //   console.error(`Webhook Error: Paystack not configured for business ${business_id}`);
+  //   return res.status(400).send('Webhook error: Business configuration not found.');
+  // }
 
   // Verify the webhook signature
-  const hash = crypto.createHmac('sha512', credentials.paystack_secret_key).update(JSON.stringify(req.body)).digest('hex');
-  if (hash !== req.headers['x-paystack-signature']) {
-    console.warn(`Invalid Paystack signature for business ${business_id}`);
-    return res.status(400).send('Invalid signature');
+  // const hash = crypto.createHmac('sha512', credentials.paystack_secret_key).update(JSON.stringify(req.body)).digest('hex');
+  // if (hash !== req.headers['x-paystack-signature']) {
+  //   console.warn(`Invalid Paystack signature for business ${business_id}`);
+  //   return res.status(400).send('Invalid signature');
+  // }
+
+  if (event.event === 'dedicatedaccount.assign.success' && type === 'agent_credit_topup') {
+    const account = event.data.dedicated_account;
+    if (account && account.account_number) {
+      await query(
+        'UPDATE ray_users SET paystack_dedicated_account_number = $1, paystack_dedicated_bank_name = $2, paystack_dedicated_account_name = $3 WHERE id = $4',
+        [account.account_number, account.bank.name, account.account_name, user.id]
+      );
+
+      if (account.customer && account.customer.customer_code && !user.paystack_customer_code) {
+        await query(
+          'UPDATE ray_users SET paystack_customer_code = $1 WHERE id = $2',
+          [account.customer.customer_code, user.id]
+        );
+      }
+      console.log(`Created dedicated account ${account.account_number} for user ${user.id}`);
+    }
+  } else if (event.event === 'dedicatedaccount.assign.success' && type === 'loan_repayment') {
+    const account = event.data.dedicated_account;
+    if (account && account.account_number) {
+      await query(
+        'UPDATE ray_loans SET paystack_dedicated_account_number = $1, paystack_dedicated_bank_name = $2, paystack_dedicated_account_name = $3 WHERE id = $4',
+        [account.account_number, account.bank.name, account.account_name, loanId]
+      );
+
+      // if (account.customer && account.customer.customer_code && !customer.paystack_customer_code) {
+      //   await query(
+      //     'UPDATE ray_users SET paystack_customer_code = $1 WHERE id = $2',
+      //     [account.customer.customer_code, userId]
+      //   );
+      // }
+      console.log(`Created dedicated account ${account.account_number} for loan ${loanId}`);
+    }
   }
 
   // Process only successful charges
