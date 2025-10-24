@@ -309,7 +309,7 @@ router.post('/paystack/webhook', async (req, res) => {
 // @access  Public
 router.post('/paystack/dedicated-webhook', async (req, res) => {
   const event = req.body;
-
+  console.log({event});
   // It's crucial to get business_id from a reliable source in the payload.
   // Assuming it's in metadata as we designed.
   const business_id = event.data.metadata ? event.data.metadata.business_id : null;
