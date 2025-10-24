@@ -65,7 +65,10 @@ const createDedicatedAccount = async (loan, customer, business) => {
   if (!subaccount_code) {
     console.warn(`Business ${business.id} does not have a Paystack subaccount code. Payments will be routed to the main account.`);
   }
-
+  if (!business.paystack_subaccount_code) {
+    console.error(`subaccount must be created ${business.id}. Cannot create dedicated account for user.`);
+    return;
+  }
   try {
     const customerPayload = customer.paystack_customer_code || {
       email: `${loan.id}@raykonet.com`,
@@ -134,6 +137,10 @@ const createDedicatedAccountForUser = async (user, business) => {
   const credentials = await getBusinessCredentials(business.id);
   if (!credentials || !credentials.paystack_secret_key) {
     console.error(`Paystack is not configured for business ${business.id}. Cannot create dedicated account for user.`);
+    return;
+  }
+  if (!business.paystack_subaccount_code) {
+    console.error(`subaccount must be created ${business.id}. Cannot create dedicated account for user.`);
     return;
   }
 
