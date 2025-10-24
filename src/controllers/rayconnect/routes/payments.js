@@ -344,7 +344,7 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
     if (account && account.account_number) {
       await query(
         'UPDATE ray_users SET paystack_dedicated_account_number = $1, paystack_dedicated_bank_name = $2, paystack_dedicated_account_name = $3 WHERE id = $4',
-        [account.account_number, account.bank.name, account.account_name, user.id]
+        [account.account_number, account.bank.name, account.account_name, userId]
       );
 
       if (account.customer && account.customer.customer_code && !user.paystack_customer_code) {
@@ -353,7 +353,7 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
           [account.customer.customer_code, user.id]
         );
       }
-      console.log(`Created dedicated account ${account.account_number} for user ${user.id}`);
+      console.log(`Created dedicated account ${account.account_number} for user ${userId}`);
     }
   } else if (event.event === 'dedicatedaccount.assign.success' && type === 'loan_repayment') {
     const account = event.data.dedicated_account;
