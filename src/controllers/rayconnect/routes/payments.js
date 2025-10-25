@@ -371,7 +371,7 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
           console.error(`Error sending WhatsApp message for user ${userId}:`, err);
         }
       })();
-      console.log(`Created dedicated account ${account.account_number} for user ${userId}`);
+      console.log(`Created dedicated account .jjjjjj ${account.account_number} for user ${userId}`);
     }
   } else if (event.event === 'dedicatedaccount.assign.success' && type === 'loan_repayment') {
     const account = event.data.dedicated_account;
