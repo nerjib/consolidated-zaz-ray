@@ -143,7 +143,7 @@ const sendVirtualAccountCreationLoanMessage = async (to, name, account_number, b
       parameters: [{type:"text", text: business_name}]
     }
   ];
-  return sendWhatsAppTemplateMessage(to, templateName, components, 'en_US');
+  return sendWhatsAppTemplateMessage(to, templateName, components, 'en');
 };
 
 const sendAgentCreditTopUpMessage = async (to, name, account_number, bank, account_name, business_name) => {
