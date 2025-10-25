@@ -482,6 +482,17 @@ router.put('/devices/:id/reprocess', auth, can('device:reprocess'), async (req, 
             [device_id, business_id]
         );
 
+        const updateLoans = await client.query(
+            `UPDATE ray_loans
+             SET
+                device_id = NULL,
+                status = 'closed',
+                updated_at = CURRENT_TIMESTAMP
+             WHERE
+                device_id = $1 AND business_id = $2 AND status != 'closed';`,
+            [device_id, business_id]
+        );
+
         // 4. Log the change in the history table
         await client.query(
             `INSERT INTO ray_device_history (device_id, business_id, changed_by, previous_status, new_status, reason, notes)
