@@ -120,6 +120,8 @@ router.post('/agent-credit', auth, can('payment:create:manual', ['super-agent', 
   try {
     await client.query('BEGIN');
 
+    const userDetails = await client.query('SELECT * FROM ray_users WHERE id = $1 AND business_id = $2', [user_id, business_id]);
+    const businessDetails = await client.query('SELECT * FROM businesses WHERE id = $1', [business_id]);
     if (!user_id || typeof amount !== 'number' || amount <= 0 || !loan_id) {
       await client.query('ROLLBACK');
       return res.status(400).json({ msg: 'Customer ID, positive amount, and Loan ID are required.' });
@@ -172,6 +174,7 @@ router.post('/agent-credit', auth, can('payment:create:manual', ['super-agent', 
       res.json({ msg: 'Payment made successfully using agent credit. Full cycle payment processed.', payment: newPayment.rows[0], newCreditBalance, excessAmount: excessAmount ?? 0});
     } else {
       await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [newAccumulatedPayment, loan_id]);
+      sendPaymentReceiptMessage(userDetails.rows[0].phone_number, userDetails.rows[0].name || userDetails.rows[0].username, amount, loan.payment_cycle_amount, businessDetails.rows[0].name);
       res.json({ msg: 'Payment made successfully using agent credit. Partial payment received.', payment: newPayment.rows[0], newCreditBalance });
     }
 
