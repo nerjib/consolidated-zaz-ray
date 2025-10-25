@@ -389,7 +389,7 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
       }
       const customerResult = await query('SELECT * FROM ray_users WHERE id = $1', [userId]);
       const businessResult = await query('SELECT * FROM businesses WHERE id = $1', [business_id]);
-      console.log(`Created dedicated account ${account.account_number} for loan ${loanId}`);
+      console.log(`Created dedicated account l ${account.account_number} for loan ${loanId}`);
       (async () => {
         try {
           await sendVirtualAccountCreationLoanMessage(
