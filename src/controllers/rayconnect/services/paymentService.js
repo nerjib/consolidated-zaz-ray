@@ -110,7 +110,7 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
 
     const user = await client.query('SELECT username, phone_number FROM ray_users WHERE id = $1 AND business_id = $2', [userId, business_id]);
     const userContact = user.rows[0] ? user.rows[0].phone_number : null;
-    const userName = user.rows[0] ? user.rows[0].username : null;
+    const userName = user.rows[0] ? user.rows[0].name : null;
 
     if (userContact && credentials.africastalking_api_key) {
       const message = `Your PayGo activation code is: ${token}. Amount paid: ${amount}. ${tokenExpirationDays ? `Valid for ${tokenExpirationDays} days.` : 'This is a permanent unlock code.'}`;

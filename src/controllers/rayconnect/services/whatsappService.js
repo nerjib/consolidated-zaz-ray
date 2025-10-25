@@ -62,7 +62,7 @@ const sendAgentCreationMessage = async (to, agentName, businessName) => {
 };
 
 const sendPaymentDoneMessage = async (to, name, amount, deviceid, token, days, company) => {
-  const templateName = 'token_payment';
+  const templateName = 'pay_with_token';
   const components = [
     {
       type: 'body',
