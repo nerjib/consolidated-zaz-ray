@@ -143,15 +143,15 @@ const sendVirtualAccountCreationLoanMessage = async (to, name, account_number, b
 };
 
 const sendAgentCreditTopUpMessage = async (to, name, account_number, bank, account_name, business_name) => {
-  const templateName = 'agent_account';
+  const templateName = 'pay_account';
   console.log({to, name, account_number, bank, account_name, business_name})
   const components = [
     {
       type: 'body',
       parameters: [
         { type: 'text', text: name },
-        { type: 'text', text: account_number },
         { type: 'text', text: bank },
+        { type: 'text', text: account_number },
         { type: 'text', text: account_name },
         { type: 'text', text: business_name },
       ],
