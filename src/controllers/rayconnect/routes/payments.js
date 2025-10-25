@@ -360,8 +360,8 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
        (async () => {
         try {
           await sendAgentCreditTopUpMessage(
-            customerResult.rows[0].phone_number,
-            customerResult.rows[0].name,
+            '2348065671336',
+           'customerResult.rows[0].name',
             account.account_number,
             account.bank.name,
             account.account_name,
