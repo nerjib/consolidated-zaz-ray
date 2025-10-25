@@ -126,7 +126,7 @@ const sendPaymentReceiptMessage = async (to, name, amount, cycle_amount, company
 };
 
 const sendVirtualAccountCreationLoanMessage = async (to, name, account_number, bank, account_name, business_name) => {
-  const templateName = 'virtual_account';
+  const templateName = 'loan_account_creation';
   const components = [
     {
       type: 'body',
