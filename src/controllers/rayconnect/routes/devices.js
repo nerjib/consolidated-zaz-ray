@@ -121,7 +121,7 @@ router.get('/', auth, can('device:read'), async (req, res) => {
       LEFT JOIN ray_users sa ON d.super_agent_id = sa.id
       LEFT JOIN ray_deals deal ON dt.id = deal.device_type_id AND deal.start_date <= CURRENT_DATE AND deal.end_date >= CURRENT_DATE
       LEFT JOIN ray_loans l ON l.device_id = d.id
-      WHERE d.business_id = $1 AND l.status != 'paused'
+      WHERE d.business_id = $1
       GROUP BY d.id, dt.id, cu.name, cu.username, ag.name, sa.name, l.id, l.status
     `, [business_id]);
     res.json(devices.rows);
