@@ -98,7 +98,7 @@ const sendPaymentDoneMessage = async (to, name, amount, deviceid, token, days, c
 };
 
 const sendPaymentReceiptMessage = async (to, name, amount, cycle_amount, company) => {
-  const templateName = 'non_token_payment';
+  const templateName = 'payment_without_token';
   const components = [
     {
       type: 'body',

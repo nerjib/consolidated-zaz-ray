@@ -443,6 +443,8 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
         const user_id = loan.customer_id;
         const loan_id = loan.id;
         const paymentAmount = amount / 100;
+        const userDetails = await client.query('SELECT id FROM ray_users WHERE id = $1 AND business_id = $2', [user_id, business_id]);
+        const businessDetails = await client.query('SELECT id FROM businesses WHERE id = $1', [business_id]);
 
         const newPayment = await client.query(
           'INSERT INTO ray_payments (user_id, amount, currency, payment_method, transaction_id, status, loan_id, business_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *;',
@@ -459,6 +461,13 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
           await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
         } else {
           await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [newAccumulatedPayment, loan_id]);
+          sendPaymentReceiptMessage(
+            userDetails.rows[0].phone_number,
+            userDetails.rows[0].name || userDetails.rows[0].username,
+            paymentAmount,
+            loan.payment_cycle_amount,
+            businessDetails.rows[0].name
+          );
         }
         console.log(`Successfully processed dedicated account payment ${reference} for loan ${loan_id}`);
 
