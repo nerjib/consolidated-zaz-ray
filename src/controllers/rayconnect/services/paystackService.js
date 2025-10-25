@@ -86,7 +86,8 @@ const createDedicatedAccount = async (loan, customer, business) => {
         metadata: {
             loan_id: loan.id,
             business_id: business.id,
-            type: 'loan_account'
+            type: 'loan_account',
+            user_id: customer.id,
         }
       },
       {
