@@ -105,7 +105,7 @@ router.get('/', auth, can('device:read'), async (req, res) => {
         d.super_agent_id AS "superAgentId",
         sa.name AS "superAgentName",
         l.id as loanId,
-        l.status
+        l.status,
         COALESCE(json_agg(DISTINCT deal.allowed_payment_frequencies) FILTER (WHERE deal.id IS NOT NULL), '["monthly", "weekly", "daily"]'::json) AS "allowedPaymentFrequencies",
         json_agg(json_build_object(
           'id', deal.id,
