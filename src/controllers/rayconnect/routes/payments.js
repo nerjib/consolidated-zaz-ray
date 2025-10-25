@@ -401,7 +401,7 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
             businessResult.rows[0].name
           );
         } catch (err) {
-          console.error(`Error sending WhatsApp message for loan ${loan.id}:`, err);
+          console.error(`Error sending WhatsApp message for loan ${loanId}:`, err);
         }
       })();
     }
