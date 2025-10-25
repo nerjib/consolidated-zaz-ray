@@ -66,7 +66,7 @@ router.get('/', async (req, res) => {
   });  
 
   router.get('/profile/:id', async (req, res) => {
-    const getAllQ = `SELECT * FROM zazzauusers left join profileimg on zazzauusers.ippis=profileimg.userid where zazzauusers.ippis=$1`;
+    const getAllQ = `SELECT * FROM zazzauusers  where ippis=$1`;
     try {
       // const { rows } = qr.query(getAllQ);
       const { rows } = await db.query(getAllQ,[req.params.id]);

@@ -37,10 +37,11 @@ exports.createRefund = async (req, res) => {
             newStatus = 'refunded';
         }
 
-        await payment.update({ status: newStatus });
+        // await payment.update({ status: newStatus });
 
         res.status(201).send(refund);
     } catch (error) {
+        console.log({error})
         res.status(500).send({ message: error.message });
     }
 };
@@ -54,7 +55,10 @@ exports.bulkRefund = async (req, res) => {
         let path = `${req.file.destination}/${req.file.originalname}`;
         readXlsxFile(path).then(async (rows) => {
             rows.shift(); // skip header
-
+            rows.shift();
+            rows.shift();
+            rows.shift();
+  
             const refunds = [];
             for (const row of rows) {
                 console.log({row})
@@ -98,7 +102,7 @@ exports.bulkRefund = async (req, res) => {
                     newStatus = 'refunded';
                 }
         
-                await payment?.update({ status: newStatus });
+                // await payment?.update({ status: newStatus });
             }
 
             const createdRefunds = await Refund.bulkCreate(refunds, { ignoreDuplicates: true });
@@ -148,7 +152,7 @@ exports.getRefundsByUser = async (req, res) => {
     const { ippis } = req.params;
     try {
         const refunds = await Refund.findAll({ where: { payment_ippis: ippis } });
-        res.status(200).send(refunds);
+        res.status(200).send({status: true, data: refunds });
     } catch (error) {
         res.status(500).send({ message: error.message });
     }
