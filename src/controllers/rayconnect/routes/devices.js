@@ -89,7 +89,7 @@ router.get('/', auth, can('device:read'), async (req, res) => {
   try {
     const devices = await query(`
       SELECT
-        d.id,
+        unique(d.id) AS id,
         d.serial_number AS "serialNumber",
         d.status,
         d.created_at AS "installDate",
