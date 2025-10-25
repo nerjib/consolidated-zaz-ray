@@ -485,12 +485,12 @@ router.put('/devices/:id/reprocess', auth, can('device:reprocess'), async (req, 
         const updateLoans = await client.query(
             `UPDATE ray_loans
              SET
-                device_id = NULL,
+                device_id = $3,
                 status = 'closed',
                 updated_at = CURRENT_TIMESTAMP
              WHERE
                 device_id = $1 AND business_id = $2 AND status != 'closed';`,
-            [device_id, business_id]
+            [device_id, business_id, `reprocess-${device_id}`]
         );
 
         // 4. Log the change in the history table
