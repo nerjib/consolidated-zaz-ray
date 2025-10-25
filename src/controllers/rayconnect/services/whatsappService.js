@@ -29,6 +29,9 @@ const sendWhatsAppTemplateMessage = async (to, templateName, components, code) =
     return response.data;
   } catch (error) {
     console.error('Error sending WhatsApp template message:', error.response ? error.response.data : error.message);
+    if (error.response) {
+      console.error('Axios Error Data:', error.response.data);
+    }
     throw error;
   }
 };
