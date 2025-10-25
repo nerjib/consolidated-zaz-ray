@@ -362,10 +362,10 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
           await sendAgentCreditTopUpMessage(
             '2348065671336',
            'customerResult.rows[0].name',
-            account.account_number,
-            account.bank.name,
-            account.account_name,
-            businessResult.rows[0].name
+            account?.account_number ?? 'lll',
+            account?.bank.name ?? 'mmm',
+            account?.account_name ?? 'ooo',
+            businessResult?.rows[0]?.name ?? 'qqq'
           );
         } catch (err) {
           console.error(`Error sending WhatsApp message for user ${userId}:`, err);
