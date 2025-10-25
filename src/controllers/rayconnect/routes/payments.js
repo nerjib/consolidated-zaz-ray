@@ -373,7 +373,7 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
       })();
       console.log(`Created dedicated account .jjjjjj ${account.account_number} for user ${userId}`);
     }
-  } else if (event.event === 'dedicatedaccount.assign.success' && type === 'loan_repayment') {
+  } else if (event.event === 'dedicatedaccount.assign.success' && type === 'loan_account') {
     const account = event.data.dedicated_account;
     if (account && account.account_number) {
       await query(
