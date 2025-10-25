@@ -6,7 +6,7 @@ const { getActivationCode } = require('./beebeeService');
 const { generateToken, TokenType } = require('./openPayGoService');
 const { getBusinessCredentials } = require('./utils');
 
-const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId = null, business_id, isInitialPayment = false) => {
+const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId = null, business_id, isInitialPayment = false, full_amount) => {
   try {
     const credentials = await getBusinessCredentials(business_id);
     if (!credentials) {
@@ -120,7 +120,7 @@ const handleSuccessfulPayment = async (client, userId, amount, paymentId, loanId
 
     if (userContact && userName) {
         try {
-            await sendPaymentDoneMessage(userContact, userName, amount, deviceId, token, tokenExpirationDays, businessName);
+            await sendPaymentDoneMessage(userContact, userName, full_amount, deviceId, token, tokenExpirationDays, businessName);
         } catch (err) {
             console.error(`Error sending WhatsApp message for payment ${paymentId}:`, err);
         }

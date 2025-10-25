@@ -67,7 +67,7 @@ router.post('/manual', auth, can('payment:create:manual'), async (req, res) => {
       // if (newAccumulatedPayment % loan.payment_cycle_amount !== 0) {
         const highestMultiple = Math.floor(newAccumulatedPayment / loan.payment_cycle_amount) * loan.payment_cycle_amount;
         const excessAmount = newAccumulatedPayment - highestMultiple;
-        await handleSuccessfulPayment(client, user_id, highestMultiple, newPayment.rows[0].id, loan_id, business_id);
+        await handleSuccessfulPayment(client, user_id, highestMultiple, newPayment.rows[0].id, loan_id, business_id, false,amount);
         await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
         // res.json({ msg: 'Manual payment recorded successfully. Full cycle payment processed.', payment: newPayment.rows[0], excessAmount });
       // await handleSuccessfulPayment(client, user_id, loan.payment_cycle_amount, newPayment.rows[0].id, loan_id, business_id);
@@ -167,7 +167,7 @@ router.post('/agent-credit', auth, can('payment:create:manual', ['super-agent', 
     if (newAccumulatedPayment >= loan.payment_cycle_amount) {
       const highestMultiple = Math.floor(newAccumulatedPayment / loan.payment_cycle_amount) * loan.payment_cycle_amount;
       const excessAmount = newAccumulatedPayment - highestMultiple;
-      await handleSuccessfulPayment(client, user_id, highestMultiple, newPayment.rows[0].id, loan_id, business_id);
+      await handleSuccessfulPayment(client, user_id, highestMultiple, newPayment.rows[0].id, loan_id, business_id, false,amount);
       await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
       res.json({ msg: 'Payment made successfully using agent credit. Full cycle payment processed.', payment: newPayment.rows[0], newCreditBalance, excessAmount: excessAmount ?? 0});
     } else {
@@ -285,7 +285,7 @@ router.post('/paystack/webhook', async (req, res) => {
       if (newAccumulatedPayment >= loan.payment_cycle_amount) {
         const highestMultiple = Math.floor(newAccumulatedPayment / loan.payment_cycle_amount) * loan.payment_cycle_amount;
         const excessAmount = newAccumulatedPayment - highestMultiple;
-        await handleSuccessfulPayment(client, user_id, highestMultiple, newPayment.rows[0].id, loan_id, business_id);
+        await handleSuccessfulPayment(client, user_id, highestMultiple, newPayment.rows[0].id, loan_id, business_id, false,amount / 100);
         await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
       } else {
         await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [newAccumulatedPayment, loan_id]);
@@ -455,7 +455,7 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
           const amountForCycles = numCyclesPaid * loan.payment_cycle_amount;
           const excessAmount = newAccumulatedPayment - amountForCycles;
 
-          await handleSuccessfulPayment(client, user_id, amountForCycles, newPayment.rows[0].id, loan_id, business_id);
+          await handleSuccessfulPayment(client, user_id, amountForCycles, newPayment.rows[0].id, loan_id, business_id, false, paymentAmount);
           await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [excessAmount, loan_id]);
         } else {
           await client.query('UPDATE ray_loans SET current_cycle_accumulated_payment = $1 WHERE id = $2', [newAccumulatedPayment, loan_id]);
