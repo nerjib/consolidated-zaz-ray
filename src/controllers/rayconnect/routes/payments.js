@@ -360,12 +360,12 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
        (async () => {
         try {
           await sendAgentCreditTopUpMessage(
-            '2348065671336',
-           'customerResult.rows[0].name',
-            account?.account_number ?? 'lll',
-            account?.bank.name ?? 'mmm',
-            account?.account_name ?? 'ooo',
-            businessResult?.rows[0]?.name ?? 'qqq'
+            customerResult.rows[0].phone_number,
+            customerResult.rows[0].name || customerResult.rows[0].username,
+            account?.account_number,
+            account?.bank.name,
+            account?.account_name,
+            businessResult?.rows[0]?.name
           );
         } catch (err) {
           console.error(`Error sending WhatsApp message for user ${userId}:`, err);
@@ -394,8 +394,7 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
         try {
           await sendVirtualAccountCreationLoanMessage(
             customerResult.rows[0].phone_number,
-            customerResult.rows[0].name,
-            account.customer.last_name,
+            customerResult.rows[0].name || customerResult.rows[0].username,
             account.account_number,
             account.bank.name,
             account.account_name,
