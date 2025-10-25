@@ -105,6 +105,7 @@ router.get('/', auth, can('device:read'), async (req, res) => {
         d.super_agent_id AS "superAgentId",
         sa.name AS "superAgentName",
         l.id as loanId,
+        l.status
         COALESCE(json_agg(DISTINCT deal.allowed_payment_frequencies) FILTER (WHERE deal.id IS NOT NULL), '["monthly", "weekly", "daily"]'::json) AS "allowedPaymentFrequencies",
         json_agg(json_build_object(
           'id', deal.id,
@@ -120,8 +121,8 @@ router.get('/', auth, can('device:read'), async (req, res) => {
       LEFT JOIN ray_users sa ON d.super_agent_id = sa.id
       LEFT JOIN ray_deals deal ON dt.id = deal.device_type_id AND deal.start_date <= CURRENT_DATE AND deal.end_date >= CURRENT_DATE
       LEFT JOIN ray_loans l ON l.device_id = d.id
-      WHERE d.business_id = $1
-      GROUP BY d.id, dt.id, cu.name, cu.username, ag.name, sa.name, l.id
+      WHERE d.business_id = $1 AND l.status != 'paused'
+      GROUP BY d.id, dt.id, cu.name, cu.username, ag.name, sa.name, l.id, l.status
     `, [business_id]);
     res.json(devices.rows);
   } catch (err) {
