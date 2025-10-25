@@ -356,7 +356,7 @@ router.post('/paystack/dedicated-webhook', async (req, res) => {
       const customerResult = await query('SELECT * FROM ray_users WHERE id = $1', [userId]);
       const businessResult = await query('SELECT * FROM businesses WHERE id = $1', [business_id]);
        // Send WhatsApp message
-       console.log({vvvvvvvvv: customerResult.rows[0], business: businessResult.rows[0]});
+      //  console.log({vvvvvvvvv: customerResult.rows[0], business: businessResult.rows[0]});
        (async () => {
         try {
           await sendAgentCreditTopUpMessage(

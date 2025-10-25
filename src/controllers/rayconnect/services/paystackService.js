@@ -110,7 +110,7 @@ const createDedicatedAccount = async (loan, customer, business) => {
           [account.customer.customer_code, customer.id]
         );
       }
-      console.log(`Created dedicated account j ${account.account_number} for loan ${loan.id}`);
+      console.log(`Created dedicated account ${account.account_number} for loan ${loan.id}`);
 
       // Send WhatsApp message
       (async () => {
@@ -185,7 +185,7 @@ const createDedicatedAccountForUser = async (user, business) => {
           [account.customer.customer_code, user.id]
         );
       }
-      console.log(`Created dedicated account g ${account.account_number} for user ${user.id}`);
+      console.log(`Created dedicated account ${account.account_number} for user ${user.id}`);
 
       // Send WhatsApp message
       (async () => {
