@@ -58,7 +58,7 @@ const createDedicatedAccount = async (loan, customer, business) => {
   console.log({credentials})
   if (!credentials || !credentials.paystack_secret_key) {
     console.error(`Paystack is not configured for business ${business.id}. Cannot create dedicated account.`);
-    return;
+    return null; // Return null on error
   }
 
   let subaccount_code = business.paystack_subaccount_code;
@@ -67,7 +67,7 @@ const createDedicatedAccount = async (loan, customer, business) => {
   }
   if (!business.paystack_subaccount_code) {
     console.error(`subaccount must be created ${business.id}. Cannot create dedicated account for user.`);
-    return;
+    return null; // Return null on error
   }
   try {
     const customerPayload = customer.paystack_customer_code || {
@@ -98,8 +98,8 @@ const createDedicatedAccount = async (loan, customer, business) => {
       }
     );
 
-    const account = response.data.data;
-    if (account && account.account_number) {
+    const account = response?.data;
+    if (account && account?.account_number) {
       await query(
         'UPDATE ray_loans SET paystack_dedicated_account_number = $1, paystack_dedicated_bank_name = $2, paystack_dedicated_account_name = $3 WHERE id = $4',
         [account.account_number, account.bank.name, account.account_name, loan.id]
@@ -128,9 +128,14 @@ const createDedicatedAccount = async (loan, customer, business) => {
           console.error(`Error sending WhatsApp message for loan ${loan.id}:`, err);
         }
       })();
+      return account; // Return the account object
+    } else if (response && response.status) {
+      console.log(`No account created for loan ${loan.id}. Response:`, response.data);
+      return response.status;
     }
   } catch (error) {
     console.error(`Paystack error creating dedicated account for loan ${loan.id}:`, error.response ? error.response.data : error.message);
+    return null; // Return null on error
   }
 };
 

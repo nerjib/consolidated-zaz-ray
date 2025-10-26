@@ -555,4 +555,74 @@ router.post('/backfill-accounts', auth, can('loan:create'), async (req, res) => 
   }
 });
 
+// @route   POST api/loans/:loanId/dedicated-account
+// @desc    Generate a dedicated account for a loan (Admin/Agent/Super-Agent only)
+// @access  Private (Admin, Agent, Super-Agent)
+router.post('/:loanId/dedicated-account', auth, authorize('admin', 'agent', 'super-agent', 'platform_owner'), async (req, res) => {
+  const { loanId } = req.params;
+  const { business_id } = req.user;
+
+  try {
+    // 1. Fetch loan details
+    const loanResult = await query(
+      'SELECT id, customer_id, business_id, paystack_dedicated_account_number FROM ray_loans WHERE id = $1 AND business_id = $2',
+      [loanId, business_id]
+    );
+
+    if (loanResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'Loan not found or not in your business.' });
+    }
+    const loan = loanResult.rows[0];
+
+    // 2. Check if loan already has a dedicated account
+    if (loan.paystack_dedicated_account_number) {
+      return res.status(400).json({ msg: 'Loan already has a dedicated account.' });
+    }
+
+    // 3. Fetch customer details
+    const customerResult = await query(
+      'SELECT id, username, email, phone_number, name, paystack_customer_code FROM ray_users WHERE id = $1',
+      [loan.customer_id]
+    );
+
+    if (customerResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'Customer not found for this loan.' });
+    }
+    const customer = customerResult.rows[0];
+
+    // 4. Fetch business details
+    const businessResult = await query(
+      'SELECT id, name, paystack_subaccount_code FROM businesses WHERE id = $1',
+      [business_id]
+    );
+
+    if (businessResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'Business not found.' });
+    }
+    const business = businessResult.rows[0];
+
+    // 5. Ensure subaccount code exists for the business
+    if (!business.paystack_subaccount_code) {
+      return res.status(400).json({ msg: 'Business does not have a Paystack subaccount configured. Please configure it first.' });
+    }
+
+    // 6. Create dedicated account via Paystack Service
+    const dedicatedAccountDetails = await createDedicatedAccount(loan, customer, business);
+
+    if (!dedicatedAccountDetails) {
+      return res.status(500).json({ msg: 'Failed to create dedicated account via Paystack.' });
+    }
+
+    res.status(200).json({
+      status: true,
+      msg: 'Dedicated account created successfully for loan.',
+      account: dedicatedAccountDetails
+    });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;
