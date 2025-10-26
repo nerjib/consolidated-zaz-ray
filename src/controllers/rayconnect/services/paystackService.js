@@ -203,7 +203,10 @@ const createDedicatedAccountForUser = async (user, business) => {
           console.error(`Error sending WhatsApp message for user ${user.id}:`, err);
         }
       })();
+    } else if (response.data && response.data.status) {
+      console.log(`No account created for user ${user.id}. Response:`, response.data);
     }
+
   } catch (error) {
     console.error(`Paystack error creating dedicated account for user ${user.id}:`, error.response ? error.response.data : error.message);
   }

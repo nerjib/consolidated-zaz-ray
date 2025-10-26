@@ -515,7 +515,7 @@ router.put('/profile-picture', auth, async (req, res) => {
   }
 });
 
-// @route   POST api/admin/agents/:agentId/dedicated-account
+// @route   POST api/agents/:agentId/dedicated-account
 // @desc    Create a dedicated account for an agent (Admin only)
 // @access  Private (Admin, Platform Owner)
 router.post('/:agentId/dedicated-account', auth, can('agent:manage:credit'), async (req, res) => {
