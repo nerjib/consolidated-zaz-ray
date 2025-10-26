@@ -7,6 +7,7 @@ const upload = require('./multer')
 const cloudinary = require('./cloudinary')
 const Helper = require('./helpers/pagination')
 const db2 = require("../../models");
+const Sequelize = require("sequelize");
 const Payment = db2.payments;
 const Refund = db2.refunds;
 
@@ -99,10 +100,9 @@ router.get('/', async (req, res) => {
 
   const { limit, offset } = Helper.getPagination(page, size);
 
-  Payment.findAndCountAll({  limit, offset })
+  Payment.findAndCountAll({  limit, offset, order: [[Sequelize.literal(`to_date(period,'YYYY-MM-DD')`), 'DESC']] })
     .then(data => {
-      const sortedData = data.rows.sort((a, b) => new Date(a.period).getTime() - new Date(b.period).getTime());
-      const response = Helper.getPagingData({ ...data, rows: sortedData }, page, limit);
+      const response = Helper.getPagingData(data, page, limit);
       res.send(response);
     })
     .catch(err => {
