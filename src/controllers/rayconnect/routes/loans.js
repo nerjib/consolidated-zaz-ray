@@ -235,6 +235,7 @@ router.get('/', auth, can('loan:read'), async (req, res) => {
     const loans = await query(`
       SELECT
         l.id AS loan_id,
+        l.paystack_dedicated_account_number AS account_number,
         l.created_at AS start_date,
         u.username AS customer_name,
         l.total_amount AS loan_amount,
@@ -271,6 +272,7 @@ router.get('/:id', auth, can('loan:read'), async (req, res) => {
         l.balance AS "remainingAmount",
         l.agent_id,
         l.status,
+        l.paystack_dedicated_account_number AS "accountNumber",
         l.signed_agreement_base64 AS "signedAgreement",
         l.created_at AS "startDate",
         l.end_date AS "endDate",

@@ -20,6 +20,7 @@ router.get('/', auth, can('super:agent:read'), async (req, res) => {
         u.state AS region, 
         u.status,
         u.credit_balance,
+        u.paystack_dedicated_account_number as "accountNumber",
         u.commission_rate AS "commissionRate",
         (SELECT COUNT(*) FROM ray_devices WHERE (assigned_by = u.id OR super_agent_id = u.id) AND business_id = $1) AS "devicesManaged",
         (SELECT COUNT(*) FROM ray_users WHERE created_by = u.id AND role = 'customer' AND business_id = $1) AS "totalCustomers",
@@ -53,6 +54,7 @@ router.get('/my-agents', auth, can('agent:read',['super-agent']), async (req, re
         u.phone_number AS phone, 
         u.state AS region, 
         u.status,
+        u.paystack_dedicated_account_number as "accountNumber",
         u.credit_balance,
         (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = u.id AND business_id = $2) AS "devicesManaged",
         (SELECT SUM(p.amount) FROM ray_payments p JOIN ray_loans l ON p.loan_id = l.id WHERE l.agent_id = u.id AND p.business_id = $2) AS "totalSales"
