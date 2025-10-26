@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const can = require('../middleware/can');
 const { query, pool } = require('../config/database');
+const paystackService = require('../services/paystackService');
 
 // @route   GET api/agents
 // @desc    Get all agents information for the business
@@ -508,6 +509,65 @@ router.put('/profile-picture', auth, async (req, res) => {
     );
 
     res.json({ msg: 'Profile picture updated successfully.' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST api/admin/agents/:agentId/dedicated-account
+// @desc    Create a dedicated account for an agent (Admin only)
+// @access  Private (Admin, Platform Owner)
+router.post('/:agentId/dedicated-account', auth, can('agent:manage:credit'), async (req, res) => {
+  const { agentId } = req.params;
+  const { business_id } = req.user;
+
+  try {
+    // 1. Fetch agent details
+    const agentResult = await query(
+      `SELECT id, username, email, phone_number, paystack_dedicated_account_number FROM ray_users WHERE id = $1 AND business_id = $2`,
+      [agentId, business_id]
+    );
+
+    if (agentResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'Agent not found or not in your business.' });
+    }
+    const agent = agentResult.rows[0];
+
+    // 2. Check if agent already has a dedicated account
+    if (agent.paystack_dedicated_account_number) {
+      return res.status(400).json({ msg: 'Agent already has a dedicated account.' });
+    }
+
+    // 3. Fetch business details (needed by paystackService.createDedicatedAccountForUser)
+    const businessResult = await query(
+      'SELECT id, name, paystack_subaccount_code FROM businesses WHERE id = $1',
+      [business_id]
+    );
+
+    if (businessResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'Business not found.' });
+    }
+    const business = businessResult.rows[0];
+
+    // Ensure subaccount code exists for the business
+    if (!business.paystack_subaccount_code) {
+      return res.status(400).json({ msg: 'Business does not have a Paystack subaccount configured. Please configure it first.' });
+    }
+
+    // 4. Create dedicated account via Paystack Service
+    // The service function handles updating the agent's record in ray_users
+    const dedicatedAccountDetails = await paystackService.createDedicatedAccountForUser(agent, business);
+
+    if (!dedicatedAccountDetails) {
+      return res.status(500).json({ msg: 'Failed to create dedicated account via Paystack.' });
+    }
+
+    res.status(200).json({
+      msg: 'Dedicated account created successfully for agent.',
+      account: dedicatedAccountDetails
+    });
+
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
