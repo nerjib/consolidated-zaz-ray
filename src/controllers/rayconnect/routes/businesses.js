@@ -99,7 +99,7 @@ router.put('/credentials/:id', auth, authorize('admin', 'platform_owner'), async
     }
 
     const setClause = updateFields.join(', ');
-    const updateQuery = `UPDATE businesses SET ${setClause} WHERE id = ${paramIndex}`;
+    const updateQuery = `UPDATE businesses SET ${setClause} WHERE id = \$${paramIndex}`;
     updateValues.push(business_id);
 
     await query(updateQuery, updateValues);
