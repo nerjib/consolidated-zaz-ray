@@ -329,6 +329,7 @@ router.get('/:id', auth, can('agent:read', ['super-agent', 'agent']), async (req
         u.credit_balance,
         u.commission_rate AS "commissionRate",
         COALESCE(SUM(c.amount), 0) AS "totalCommissionsEarned",
+        u.paystack_dedicated_account_number as "accountNumber",
         u.commission_paid AS "commissionPaid",
         ((SELECT COALESCE(SUM(comm.amount), 0) FROM ray_commissions comm WHERE comm.agent_id = u.id AND comm.business_id = $2) - COALESCE(u.commission_paid, 0)) AS "commissionBalance",
         (SELECT COUNT(*) FROM ray_devices WHERE assigned_by = u.id AND business_id = $2) AS "devicesManaged",
