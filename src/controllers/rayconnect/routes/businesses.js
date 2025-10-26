@@ -51,48 +51,58 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// @route   PUT api/businesses/credentials
-// @desc    Update credentials for the business
+// @route   PUT api/businesses/credentials/:id
+// @desc    Update credentials for the business dynamically
 // @access  Private (Admin of the business)
 router.put('/credentials/:id', auth, authorize('admin', 'platform_owner'), async (req, res) => {
-  const { 
-    paystack_secret_key, 
-    paystack_public_key, 
-    africastalking_api_key, 
-    africastalking_username, 
-    biolite_client_key, 
-    biolite_private_key, 
-    biolite_public_key
+  const { id: business_id } = req.params;
+  const {
+    paystack_secret_key,
+    paystack_public_key,
+    africastalking_api_key,
+    africastalking_username,
+    biolite_client_key,
+    biolite_private_key,
+    biolite_public_key,
+    paystack_subaccount_code
   } = req.body;
-  const { id: business_id} = req.params;
-  // const business_id = req.user.business_id; // This will be set by the updated auth middleware
 
   if (!business_id) {
     return res.status(400).json({ msg: 'User is not associated with a business.' });
   }
 
   try {
-    await query(
-      `UPDATE businesses SET 
-        paystack_secret_key_encrypted = $1,
-        paystack_public_key_encrypted = $2,
-        africastalking_api_key_encrypted = $3,
-        africastalking_username_encrypted = $4,
-        biolite_client_key_encrypted = $5,
-        biolite_private_key_encrypted = $6,
-        biolite_public_key_encrypted = $7
-      WHERE id = $8`,
-      [
-        encrypt(paystack_secret_key),
-        encrypt(paystack_public_key),
-        encrypt(africastalking_api_key),
-        encrypt(africastalking_username),
-        encrypt(biolite_client_key),
-        encrypt(biolite_private_key),
-        encrypt(biolite_public_key),
-        business_id
-      ]
-    );
+    const updateFields = [];
+    const updateValues = [];
+    let paramIndex = 1;
+
+    // Helper function to add field to update
+    const addField = (key, value, encryptValue = true) => {
+      if (value !== undefined) { // Only add if value is provided
+        updateFields.push(`${key} = \$${paramIndex}`);
+        updateValues.push(encryptValue ? encrypt(value) : value);
+        paramIndex++;
+      }
+    };
+
+    addField('paystack_secret_key_encrypted', paystack_secret_key);
+    addField('paystack_public_key_encrypted', paystack_public_key);
+    addField('africastalking_api_key_encrypted', africastalking_api_key);
+    addField('africastalking_username_encrypted', africastalking_username);
+    addField('biolite_client_key_encrypted', biolite_client_key);
+    addField('biolite_private_key_encrypted', biolite_private_key);
+    addField('biolite_public_key_encrypted', biolite_public_key);
+    addField('paystack_subaccount_code', paystack_subaccount_code, false); // Do not encrypt subaccount code
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ msg: 'No fields provided for update.' });
+    }
+
+    const setClause = updateFields.join(', ');
+    const updateQuery = `UPDATE businesses SET ${setClause} WHERE id = ${paramIndex}`;
+    updateValues.push(business_id);
+
+    await query(updateQuery, updateValues);
 
     res.json({ msg: 'Business credentials updated successfully.' });
 
