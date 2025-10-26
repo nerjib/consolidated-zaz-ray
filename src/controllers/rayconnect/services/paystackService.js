@@ -81,7 +81,7 @@ const createDedicatedAccount = async (loan, customer, business) => {
       `${PAYSTACK_API_URL}/dedicated_account/assign`,
       {
         ...customerPayload,
-        preferred_bank: 'test-bank',
+        preferred_bank: 'wema-bank',
         subaccount: subaccount_code,
         metadata: {
             loan_id: loan.id,
@@ -157,7 +157,7 @@ const createDedicatedAccountForUser = async (user, business) => {
       `${PAYSTACK_API_URL}/dedicated_account/assign`,
       {
         ...customerPayload,
-        preferred_bank: 'test-bank',
+        preferred_bank: 'wema-bank',
         subaccount: business.paystack_subaccount_code,
         metadata: {
             user_id: user.id,
