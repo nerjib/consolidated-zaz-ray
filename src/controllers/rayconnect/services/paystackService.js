@@ -205,6 +205,7 @@ const createDedicatedAccountForUser = async (user, business) => {
       })();
     } else if (response && response.status) {
       console.log(`No account created for user ${user.id}. Response:`, response.data);
+      return response.status;
     }
   } catch (error) {
     console.error(`Paystack error creating dedicated account for user ${user.id}:`, error.response ? error.response.data : error.message);
