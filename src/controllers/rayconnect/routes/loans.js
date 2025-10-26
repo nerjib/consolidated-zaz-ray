@@ -558,7 +558,7 @@ router.post('/backfill-accounts', auth, can('loan:create'), async (req, res) => 
 // @route   POST api/loans/:loanId/dedicated-account
 // @desc    Generate a dedicated account for a loan (Admin/Agent/Super-Agent only)
 // @access  Private (Admin, Agent, Super-Agent)
-router.post('/:loanId/dedicated-account', auth, authorize('admin', 'agent', 'super-agent', 'platform_owner'), async (req, res) => {
+router.post('/:loanId/dedicated-account', auth, can('loan:update'), async (req, res) => {
   const { loanId } = req.params;
   const { business_id } = req.user;
 
