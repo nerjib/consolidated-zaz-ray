@@ -101,7 +101,7 @@ router.get('/', async (req, res) => {
 
   Payment.findAndCountAll({  limit, offset })
     .then(data => {
-      const sortedData = data.rows.sort((a, b) => new Date(b.period).getTime() - new Date(a.period).getTime());
+      const sortedData = data.rows.sort((a, b) => new Date(a.period).getTime() - new Date(b.period).getTime());
       const response = Helper.getPagingData({ ...data, rows: sortedData }, page, limit);
       res.send(response);
     })
