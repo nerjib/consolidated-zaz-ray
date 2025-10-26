@@ -173,8 +173,8 @@ const createDedicatedAccountForUser = async (user, business) => {
       }
     );
 
-    const account = response.data.data;
-    if (account && account.account_number) {
+    const account = response?.data;
+    if (account && account?.account_number) {
       await query(
         'UPDATE ray_users SET paystack_dedicated_account_number = $1, paystack_dedicated_bank_name = $2, paystack_dedicated_account_name = $3 WHERE id = $4',
         [account.account_number, account.bank.name, account.account_name, user.id]
@@ -206,7 +206,6 @@ const createDedicatedAccountForUser = async (user, business) => {
     } else if (response.data && response.data.status) {
       console.log(`No account created for user ${user.id}. Response:`, response.data);
     }
-
   } catch (error) {
     console.error(`Paystack error creating dedicated account for user ${user.id}:`, error.response ? error.response.data : error.message);
   }
