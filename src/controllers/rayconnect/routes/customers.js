@@ -24,6 +24,7 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
         u.created_at AS "joinDate",
         u.status,
         u.credit_score AS "creditScore",
+        u.profile_picture_base64 as profileImg,
         (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id AND business_id = $1) AS "totalLoans",
         (SELECT COUNT(*) FROM ray_loans WHERE customer_id = u.id AND status = 'active' AND business_id = $1) AS "activeLoans",
         (SELECT SUM(total_amount) FROM ray_loans WHERE customer_id = u.id AND business_id = $1) AS "totalBorrowed",
