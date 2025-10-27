@@ -9,7 +9,7 @@ const { query } = require('../config/database');
 // @desc    Create a new customer within the business
 // @access  Private (user:manage)
 router.post('/create-customer', auth, can('user:manage', ['super-agent', 'agent']), async (req, res) => {
-  const { username, email, password, phone_number, state, city, address, landmark, name, id_number } = req.body;
+  const { username, email, password, phone_number, state, city, address, landmark, name, id_number, profile_picture_base64 } = req.body;
   const creator = req.user;
   const { business_id } = creator;
 
@@ -37,10 +37,10 @@ router.post('/create-customer', auth, can('user:manage', ['super-agent', 'agent'
     const customerRoleId = roleResult.rows[0].id;
 
     const newCustomer = await query(
-      `INSERT INTO ray_users (username, email, password, role, role_id, phone_number, state, city, address, landmark, created_by, super_agent_id, name, id_number, business_id) 
-       VALUES ($1, $2, $3, 'customer', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
+      `INSERT INTO ray_users (username, email, password, role, role_id, phone_number, state, city, address, landmark, created_by, super_agent_id, name, id_number, business_id, profile_picture_base64) 
+       VALUES ($1, $2, $3, 'customer', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) 
        RETURNING id, username, email, role, role_id, business_id`,
-      [username, email, hashedPassword, customerRoleId, phone_number, state, city, address, landmark, creator.id, super_agent_id, name, id_number, business_id]
+      [username, email, hashedPassword, customerRoleId, phone_number, state, city, address, landmark, creator.id, super_agent_id, name, id_number, business_id, profile_picture_base64]
     );
 
     res.json({ msg: 'Customer created successfully', customer: newCustomer.rows[0] });
