@@ -281,7 +281,7 @@ router.put('/change-assign-device-to-super-agent', auth, can('device:update'), a
     if (superAgent.rows.length === 0) {
       return res.status(404).json({ msg: 'Super-agent not found in your business.' });
     }
-    const get_device = await query(`SELECT status FROM ray_devices WHERE id = $1 AND role = 'super-agent' AND business_id = $2`, [deviceId, business_id]);
+    const get_device = await query(`SELECT status FROM ray_devices WHERE id = $1 AND business_id = $2`, [deviceId, business_id]);
     if (get_device.rows.length === 0) {
       return res.status(404).json({ msg: 'Device not found in your business.' });
     }
@@ -318,7 +318,7 @@ router.put('/change-assign-device-to-agent', auth, can('device:update'), async (
     if (superAgent.rows.length === 0) {
       return res.status(404).json({ msg: 'agent not found in your business.' });
     }
-    const get_device = await query(`SELECT status FROM ray_devices WHERE id = $1 AND role = 'super-agent' AND business_id = $2`, [deviceId, business_id]);
+    const get_device = await query(`SELECT status FROM ray_devices WHERE id = $1 AND business_id = $2`, [deviceId, business_id]);
     if (get_device.rows.length === 0) {
       return res.status(404).json({ msg: 'Device not found in your business.' });
     }
