@@ -268,6 +268,80 @@ router.put('/assign-device-to-super-agent', auth, can('device:update'), async (r
   }
 });
 
+router.put('/change-assign-device-to-super-agent', auth, can('device:update'), async (req, res) => {
+  const { deviceId, superAgentId } = req.body;
+  const { business_id } = req.user;
+
+  try {
+    if (!deviceId || !superAgentId) {
+      return res.status(400).json({ msg: 'Device IDs  and Super-Agent ID are required.' });
+    }
+
+    const superAgent = await query(`SELECT id FROM ray_users WHERE id = $1 AND role = 'super-agent' AND business_id = $2`, [superAgentId, business_id]);
+    if (superAgent.rows.length === 0) {
+      return res.status(404).json({ msg: 'Super-agent not found in your business.' });
+    }
+    const get_device = await query(`SELECT status FROM ray_devices WHERE id = $1 AND role = 'super-agent' AND business_id = $2`, [deviceId, business_id]);
+    if (get_device.rows.length === 0) {
+      return res.status(404).json({ msg: 'Device not found in your business.' });
+    }
+    if (get_device.rows[0].status !== 'available') {
+      return res.status(400).json({ msg: 'Device is not available for assignment.' });
+    }
+
+    const updatedDevices = await query(
+      'UPDATE ray_devices SET super_agent_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING *;',
+      [superAgentId, deviceId, business_id]
+    );
+
+    if (updatedDevices.rows.length === 0) {
+      return res.status(404).json({ msg: 'No devices found or updated. Ensure they belong to your business.' });
+    }
+
+    res.json({ msg: 'Devices re-assigned successfully', devices: updatedDevices.rows });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+router.put('/change-assign-device-to-agent', auth, can('device:update'), async (req, res) => {
+  const { deviceId, agentId } = req.body;
+  const { business_id } = req.user;
+
+  try {
+    if (!deviceId || !agentId) {
+      return res.status(400).json({ msg: 'Device IDs  and Agent ID are required.' });
+    }
+
+    const superAgent = await query(`SELECT id FROM ray_users WHERE id = $1 AND role = 'agent' AND business_id = $2`, [agentId, business_id]);
+    if (superAgent.rows.length === 0) {
+      return res.status(404).json({ msg: 'agent not found in your business.' });
+    }
+    const get_device = await query(`SELECT status FROM ray_devices WHERE id = $1 AND role = 'super-agent' AND business_id = $2`, [deviceId, business_id]);
+    if (get_device.rows.length === 0) {
+      return res.status(404).json({ msg: 'Device not found in your business.' });
+    }
+    if (get_device.rows[0].status !== 'available') {
+      return res.status(400).json({ msg: 'Device is not available for assignment.' });
+    }
+
+    const updatedDevices = await query(
+      'UPDATE ray_devices SET assigned_by = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING *;',
+      [agentId, deviceId, business_id]
+    );
+
+    if (updatedDevices.rows.length === 0) {
+      return res.status(404).json({ msg: 'No devices found or updated. Ensure they belong to your business.' });
+    }
+
+    res.json({ msg: 'Devices re-assigned successfully', devices: updatedDevices.rows });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // @route   POST api/admin/add-credit
 // @desc    Admin adds credit to an agent or super-agent in the business
 // @access  Private (agent:manage:credit)
