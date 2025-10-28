@@ -290,7 +290,7 @@ router.put('/change-assign-device-to-super-agent', auth, can('device:update'), a
     }
 
     const updatedDevices = await query(
-      'UPDATE ray_devices SET super_agent_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING *;',
+      'UPDATE ray_devices SET super_agent_id = $1, assigned_by = null, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING *;',
       [superAgentId, deviceId, business_id]
     );
 
@@ -327,7 +327,7 @@ router.put('/change-assign-device-to-agent', auth, can('device:update'), async (
     }
 
     const updatedDevices = await query(
-      'UPDATE ray_devices SET assigned_by = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING *;',
+      'UPDATE ray_devices SET assigned_by = $1, super_agent_id = null, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND business_id = $3 RETURNING *;',
       [agentId, deviceId, business_id]
     );
 
