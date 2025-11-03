@@ -801,4 +801,111 @@ router.get('/settings/first-time-commission', auth, can('business:update'), asyn
   }
 });
 
+
+// @route   POST /api/admin/payments/:paymentId/regenerate-token
+// @desc    Manually regenerate a token for a successful payment that failed to get one.
+// @access  Private (user:manage)
+router.post('/payments/:paymentId/regenerate-token', auth, can('user:manage'), async (req, res) => {
+  const { paymentId } = req.params;
+  const { business_id } = req.user;
+
+  const { pool } = require('../config/database');
+  const { handleSuccessfulPayment } = require('../services/paymentService');
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Fetch the payment
+    const paymentResult = await client.query(
+      'SELECT * FROM ray_payments WHERE id = $1 AND business_id = $2',
+      [paymentId, business_id]
+    );
+
+    if (paymentResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ msg: 'Payment not found in your business.' });
+    }
+    const payment = paymentResult.rows[0];
+
+    // 2. Check if payment was successful
+    if (payment.status !== 'completed') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ msg: `Payment status is '${payment.status}', not 'completed'. Cannot generate token.` });
+    }
+
+    // 3. Check if a token already exists for this payment
+    const tokenResult = await client.query('SELECT id FROM ray_tokens WHERE payment_id = $1', [paymentId]);
+    if (tokenResult.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ msg: 'A token already exists for this payment. Cannot regenerate.' });
+    }
+
+    // 4. Check if there is a loan associated with the payment
+    if (!payment.loan_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ msg: 'Payment is not associated with any loan.' });
+    }
+
+    // 5. Call the handler function
+    const token = await handleSuccessfulPayment(
+      client,
+      payment.user_id,
+      payment.amount,
+      payment.id,
+      payment.loan_id,
+      business_id,
+      false, // isInitialPayment - assuming false for regeneration.
+      payment.amount
+    );
+
+    await client.query('COMMIT');
+
+    res.json({ msg: 'Token regenerated successfully.', token: token });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Token regeneration error:', err.message);
+    res.status(500).send('Server Error');
+  } finally {
+    client.release();
+  }
+});
+
+
+
+// @route   PUT api/admin/users/:id/reset-password
+// @desc    Admin resets a user's password
+// @access  Private (user:manage)
+router.put('/users/:id/reset-password', auth, can('user:manage'), async (req, res) => {
+  const { id: userId } = req.params;
+  const { newPassword } = req.body;
+  const { business_id } = req.user;
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ msg: 'Please provide a new password with at least 6 characters.' });
+  }
+
+  try {
+    // Check if user exists in the business
+    const userResult = await query('SELECT id FROM ray_users WHERE id = $1 AND business_id = $2', [userId, business_id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ msg: 'User not found in your business.' });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // Update user's password
+    await query('UPDATE ray_users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [hashedPassword, userId]);
+
+    res.json({ msg: 'User password has been reset successfully.' });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;

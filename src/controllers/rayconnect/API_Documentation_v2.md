@@ -975,6 +975,67 @@ Retrieves the full audit history for a specific device, showing all status chang
   ```
 
 ### 14.3 Approve or Reject Agent Request
+
+### 14.4 Admin Resets User Password
+
+### 14.5 Regenerate Token for Payment
+- **Endpoint:** `POST /api/admin/payments/:paymentId/regenerate-token`
+- **Access:** Business Admin
+- **Description:** Manually regenerates a token for a successful payment that failed to receive one during the initial transaction (e.g., due to a temporary failure in a third-party token service). This should be used with caution.
+- **URL Parameters:**
+  - `paymentId`: The UUID of the payment.
+- **Success Response (200 OK):**
+  ```json
+  {
+    "msg": "Token regenerated successfully.",
+    "token": "THE_NEWLY_GENERATED_TOKEN"
+  }
+  ```
+- **Error Response (400 Bad Request):**
+  ```json
+  {
+    "msg": "Payment status is 'pending', not 'completed'. Cannot generate token."
+  }
+  ```
+  ```json
+  {
+    "msg": "A token already exists for this payment. Cannot regenerate."
+  }
+  ```
+- **Error Response (404 Not Found):**
+  ```json
+  {
+    "msg": "Payment not found in your business."
+  }
+  ```
+- **Endpoint:** `PUT /api/admin/users/:id/reset-password`
+- **Access:** Business Admin
+- **URL Parameters:**
+  - `id`: The UUID of the user whose password is to be reset.
+- **Request Body:**
+  ```json
+  {
+    "newPassword": "a_strong_new_password"
+  }
+  ```
+- **Success Response (200 OK):**
+  ```json
+  {
+    "msg": "User password has been reset successfully."
+  }
+  ```
+- **Error Response (400 Bad Request):**
+  ```json
+  {
+    "msg": "Please provide a new password with at least 6 characters."
+  }
+  ```
+- **Error Response (404 Not Found):**
+  ```json
+  {
+    "msg": "User not found in your business."
+  }
+  ```
 - **Endpoint:** `PUT /api/admin/agents/:id/approval`
 - **Access:** Business Admin
 - **URL Parameters:**
