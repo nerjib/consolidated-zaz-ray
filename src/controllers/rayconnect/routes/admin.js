@@ -805,6 +805,7 @@ router.get('/settings/first-time-commission', auth, can('business:update'), asyn
 // @route   POST /api/admin/payments/:paymentId/regenerate-token
 // @desc    Manually regenerate a token for a successful payment that failed to get one.
 // @access  Private (user:manage)
+//becareful with current_cycle_accumulated_payment
 router.post('/payments/:paymentId/regenerate-token', auth, can('user:manage'), async (req, res) => {
   const { paymentId } = req.params;
   const { business_id } = req.user;

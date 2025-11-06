@@ -10,7 +10,7 @@ const can = require('../middleware/can');
 // @desc    Create a new user within a business
 // @access  Private (user:manage)
 router.post('/register', auth, can('user:manage'), async (req, res) => {
-  const { username, email, password, role, phone_number, state, city, address, landmark, gps, name } = req.body;
+  const { username, email, password, role, phone_number, state, city, address, landmark, gps, name, profile_picture_base64 } = req.body;
   const { business_id } = req.user;
 
   const customerRole = await query('SELECT * FROM  roles WHERE  business_id = $1 AND name = $2', [business_id, role.toLowerCase() === 'customer' ? 'Customer': role.toLowerCase() === 'agent' ? 'Agent' : '']);
@@ -41,10 +41,10 @@ router.post('/register', auth, can('user:manage'), async (req, res) => {
 
     // Save user to database
     const newUser = await query(
-      `INSERT INTO ray_users (username, email, password, role_id, phone_number, state, city, address, landmark, gps, name, business_id, role) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+      `INSERT INTO ray_users (username, email, password, role_id, phone_number, state, city, address, landmark, gps, name, business_id, role, profile_picture_base64) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
        RETURNING id, username, email, role_id, business_id, role`,
-      [username, email, hashedPassword, role_id, phone_number, state, city, address, landmark, gps, name, business_id, role]
+      [username, email, hashedPassword, role_id, phone_number, state, city, address, landmark, gps, name, business_id, role, profile_picture_base64]
     );
 
     res.json({ msg: 'User created successfully', user: newUser.rows[0] });
